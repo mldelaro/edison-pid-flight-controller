@@ -461,7 +461,7 @@ void* PidController::p_loop() {
 	Properties* fcProperties = new Properties("/tmp/flightController.properties");
 	pidConfigs = new PidConfig(fcProperties);
 
-	PidController* flightController = new PidController();
+	PidController* flightController = new PidController(pidConfigs);
 	flightController->setup();
 
 	bool didStartFlight = false;
