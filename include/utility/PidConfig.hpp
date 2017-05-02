@@ -14,9 +14,8 @@ public:
 	double* getMaxPidOutput();
 	int getMaxReceiverOutput();
 	int getCorrectionFrequencyHz();
-	bool isPidControllerLogEnabled();
-	bool isPidSensoryLogEnabled();
-	bool isGyroLogEnabled();
+	bool isCsvPidOutputEnabled();
+	bool isCsvRawGyroOutputEnabled();
 
 private:
 	Properties* propertyFile;
@@ -26,23 +25,26 @@ private:
 	double PIDMaxOutput[3];
 	int maxReceiverOutput;
 	int correctionFrequencyHz;
-	bool pidControllerLogEnabled;
-	bool pidSensoryGyroLogEnabled;
-	bool gyroLogEnabled;
+	bool csvPidOutputEnabled;
+	bool csvRawGyroOutputEnabled;
 
 	void _getDoubleValue(double* val, std::string key) {
 		double valueFromProperty;
 		valueFromProperty = propertyFile->getDoubleForKey(key);
-		if(valueFromProperty < 0) {
+		if(valueFromProperty >= 0) {
 			*val = valueFromProperty;
+		} else {
+			std::cout << "DEFAULT = " << *val << std::endl;
 		}
 	}
 
 	void _getIntValue(int* val, std::string key) {
 		double valueFromProperty;
 		valueFromProperty = propertyFile->getIntForKey(key);
-		if(valueFromProperty < 0) {
+		if(valueFromProperty >= 0) {
 			*val = valueFromProperty;
+		} else {
+			std::cout << "DEFAULT = " << *val << std::endl;
 		}
 	}
 

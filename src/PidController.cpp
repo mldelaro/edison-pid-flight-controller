@@ -37,8 +37,8 @@ int loopCounter;
 mraa::Aio* batteryVoltageAnalogInput;
 mraa::Gpio* warningLed;
 
-FCLogger* CsvGyroSensorLogger;
-FCLogger* CsvSensorLogger;
+FCLogger* CsvLoggerPidOutput;
+FCLogger* CsvLoggerGyroRawOutput;
 FCLogger* PidControlLogger;
 FCLogger* PidErrorLogger;
 
@@ -61,10 +61,10 @@ PidController::~PidController() {
 	esc_controller->~I2C_Slave_Device();
 	esc_controller = NULL;
 
-	CsvGyroSensorLogger->~FCLogger();
-	CsvGyroSensorLogger = NULL;
-	CsvSensorLogger->~FCLogger();
-	CsvSensorLogger = NULL;
+	CsvLoggerPidOutput->~FCLogger();
+	CsvLoggerPidOutput = NULL;
+	CsvLoggerGyroRawOutput->~FCLogger();
+	CsvLoggerGyroRawOutput = NULL;
 	PidControlLogger->~FCLogger();
 	PidControlLogger = NULL;
 	PidErrorLogger->~FCLogger();
@@ -75,34 +75,46 @@ PidController::~PidController() {
 PidController::PidController(PidConfig* config) {
 
 	if(config == NULL) {
+		std::cout << "Running on default PID Configurations..." << std::endl;
 		pidConfigs = new PidConfig();
+	} else {
+		std::cout << "Running on custom PID Configurations..." << std::endl;
+		pidConfigs = config;
 	}
 
-	const char* gyroCsvColumnLabels[9];
-	//gyroCsvColumnLabels[0] = "time_usec";
-	gyroCsvColumnLabels[0] = "runtime";
-	gyroCsvColumnLabels[1] = "callibrated_gyro_roll";
-	gyroCsvColumnLabels[2] = "callibrated_gyro_pitch";
-	gyroCsvColumnLabels[3] = "callibrated_yaw";
-	gyroCsvColumnLabels[4] = "degree_traveled_roll";
-	gyroCsvColumnLabels[5] = "degree_traveled_pitch";
-	gyroCsvColumnLabels[6] = "pid_output_roll";
-	gyroCsvColumnLabels[7] = "pid_output_pitch";
-	gyroCsvColumnLabels[8] = "pid_output_yaw";
+	if(pidConfigs->isCsvRawGyroOutputEnabled()) {
+		const char* sensorCsvColumnLabels[6];
+		sensorCsvColumnLabels[0] = "accelerometer_x";
+		sensorCsvColumnLabels[1] = "accelerometer_y";
+		sensorCsvColumnLabels[2] = "accelerometer_z";
+		sensorCsvColumnLabels[3] = "gyrometer_x";
+		sensorCsvColumnLabels[4] = "gyrometer_y";
+		sensorCsvColumnLabels[5] = "gyrometer_z";
 
-	const char* sensorCsvColumnLabels[6];
-	sensorCsvColumnLabels[0] = "accelerometer_x";
-	sensorCsvColumnLabels[1] = "accelerometer_y";
-	sensorCsvColumnLabels[2] = "accelerometer_z";
-	sensorCsvColumnLabels[3] = "gyrometer_x";
-	sensorCsvColumnLabels[4] = "gyrometer_y";
-	sensorCsvColumnLabels[5] = "gyrometer_z";
+		CsvLoggerGyroRawOutput = new FCLogger("/home/root/logging/csv-stats/", "RAW_Gyro", ".csv");
+		CsvLoggerGyroRawOutput->startCsvLog(6, sensorCsvColumnLabels);
+	} else {
+		std::cout << "[DISABLED] Raw Gyro CSV data log..." << std::endl;
+	}
 
-	CsvGyroSensorLogger = new FCLogger("/home/root/logging/csv-stats/", "RunningPidOutput", ".csv");
-	CsvGyroSensorLogger->startCsvLog(9, gyroCsvColumnLabels);
+	if(pidConfigs->isCsvPidOutputEnabled()) {
+		const char* gyroCsvColumnLabels[9];
+		//gyroCsvColumnLabels[0] = "time_usec";
+		gyroCsvColumnLabels[0] = "runtime";
+		gyroCsvColumnLabels[1] = "callibrated_gyro_roll";
+		gyroCsvColumnLabels[2] = "callibrated_gyro_pitch";
+		gyroCsvColumnLabels[3] = "callibrated_yaw";
+		gyroCsvColumnLabels[4] = "degree_traveled_roll";
+		gyroCsvColumnLabels[5] = "degree_traveled_pitch";
+		gyroCsvColumnLabels[6] = "pid_output_roll";
+		gyroCsvColumnLabels[7] = "pid_output_pitch";
+		gyroCsvColumnLabels[8] = "pid_output_yaw";
 
-	CsvSensorLogger = new FCLogger("/home/root/logging/csv-stats/", "RunningSensorOutput", ".csv");
-	CsvSensorLogger->startCsvLog(6, sensorCsvColumnLabels);
+		CsvLoggerPidOutput = new FCLogger("/home/root/logging/csv-stats/", "PID_Output", ".csv");
+		CsvLoggerPidOutput->startCsvLog(9, gyroCsvColumnLabels);
+	} else {
+		std::cout << "[DISABLED] PID output CSV data log..." << std::endl;
+	}
 
 	PidControlLogger = new FCLogger("/home/root/logging/pid-controller/", "PidControllerLog", ".txt");
 	PidErrorLogger = new FCLogger("/home/root/logging/pid-controller/", "PidErrorLog", ".txt");
@@ -162,9 +174,9 @@ PidController::PidController(PidConfig* config) {
 	esc_controller->setPwmCycle(3, 0, 1000);
 
 	PidControlLogger->logStream << "Initializing runtime variables..." << std::endl;
-	degreeTraveledPerSample = (double)((1.0) / (fc_constants::CORRECTION_FREQUENCY_HZ*fc_constants::GYRO_1DPS_RAW_OUTPUT));
+	degreeTraveledPerSample = (double)((1.0) / (pidConfigs->getCorrectionFrequencyHz() * fc_constants::GYRO_1DPS_RAW_OUTPUT));
 	PidControlLogger->logStream << "- Degrees traveled per sample [.00006] = " << degreeTraveledPerSample << std::endl;
-	loopTimeout = (1.0 / fc_constants::CORRECTION_FREQUENCY_HZ) * 1000000;
+	loopTimeout = (1.0 / pidConfigs->getCorrectionFrequencyHz()) * 1000000;
 	PidControlLogger->logStream << "- Loop Timeout [useconds] = " << loopTimeout << std::endl;
 }
 
@@ -220,7 +232,7 @@ void PidController::setup() {
 		gyro_sensorOffset[PITCH] += gyro->getGyro_pitch();
 		gyro_sensorOffset[YAW] += gyro->getGyro_yaw();
 
-		usleep(10);
+		usleep(15);
 	}
 
 	gyro_sensorOffset[ROLL] /= fc_constants::GYRO_SAMPLE_COUNT;
@@ -312,8 +324,8 @@ void PidController::loop(bool rotorsEnabled) {
 
 	if(currentStatus == RUNNING) {
 		// limit throttle to be able to compensate for max feedback from PID controller
-		if(pidRunningBaselineThrottle > fc_constants::MAX_RECEIVER_THROTTLE) {
-			pidRunningBaselineThrottle = fc_constants::MAX_RECEIVER_THROTTLE;
+		if(pidRunningBaselineThrottle > pidConfigs->getMaxReceiverOutput()) {
+			pidRunningBaselineThrottle = pidConfigs->getMaxReceiverOutput();
 		}
 
 		// ROTOR 1 - Clockwise 			@ front left
@@ -343,6 +355,14 @@ void PidController::loop(bool rotorsEnabled) {
 		pidRunningThrottle[3] = 1000;
 	}
 
+	boost::interprocess::shared_memory_object shared_mem_fc_receiver(
+			boost::interprocess::open_only,
+			"shared_mem_fc_receiver",
+			boost::interprocess::read_write
+	);
+	boost::interprocess::mapped_region region(shared_mem_fc_receiver, boost::interprocess::read_write);
+	std::stringstream fcReceiver;
+
 	if(rotorsEnabled) {
 		esc_controller->setPwmCycle(0, 0, pidRunningThrottle[0]);
 		esc_controller->setPwmCycle(1, 0, pidRunningThrottle[1]);
@@ -352,8 +372,6 @@ void PidController::loop(bool rotorsEnabled) {
 
 	loopCounter++;
 
-
-
 	auto loopEndTime = std::chrono::high_resolution_clock::now();
 	auto elapsedLoopTime = std::chrono::duration_cast<std::chrono::microseconds>(loopEndTime - loopStartTime);
 	loopRunningTime = elapsedLoopTime.count();
@@ -362,8 +380,8 @@ void PidController::loop(bool rotorsEnabled) {
 	//auto totalElapsedTime = std::chrono::duration_cast<std::chrono::microseconds>(loopEndTime - pidStartTime);
 	//pidRunningTime = totalElapsedTime.count();
 
-	if(enable_gyroLog) {
-		CsvGyroSensorLogger->logStream
+	if(pidConfigs->isCsvPidOutputEnabled()) {
+		CsvLoggerPidOutput->logStream
 			<< pidRunningTime << ","
 			<< gyro_sensorNormalized[ROLL] << ","
 			<< gyro_sensorNormalized[PITCH] << ","
@@ -373,19 +391,20 @@ void PidController::loop(bool rotorsEnabled) {
 			<< pidOutput[ROLL] << ","
 			<< pidOutput[PITCH] << ","
 			<< pidOutput[YAW] << std::endl;
+	}
 
-		CsvSensorLogger->logStream
+	if(pidConfigs->isCsvRawGyroOutputEnabled()) {
+		CsvLoggerGyroRawOutput->logStream
 			<< gyro->getAcc_x() << ","
 			<< gyro->getAcc_y() << ","
 			<< gyro->getAcc_z() << ","
 			<< gyro_sensorNormalized[ROLL] << ","
 			<< gyro_sensorNormalized[PITCH] << ","
 			<< gyro_sensorNormalized[YAW] << std::endl;
-
 	}
 
 
-	if((int)(loopCounter % (1*fc_constants::CORRECTION_FREQUENCY_HZ)) == (int)(0)) {
+	if((int)(loopCounter % (1 * pidConfigs->getCorrectionFrequencyHz())) == (int)(0)) {
 		if(!rotorsEnabled) {
 //			std::cout << "Running Time: " << remainingLoopTimeout << std::endl;
 //			std::cout << "Roll Traveled: " << angleTraveled[ROLL] << std::endl;
@@ -404,9 +423,6 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "Yaw Gyro Ouptut: " << gyro_sensorNormalized[YAW] << std::endl;
 
 		}
-
-
-
 
 //			std::cout << "Roll RunningError: " << pidRunningError[ROLL] << std::endl;
 //			std::cout << "Pitch RunningError: " << pidRunningError[PITCH] << std::endl;
@@ -458,7 +474,7 @@ void* PidController::p_loop() {
 	boost::interprocess::mapped_region region(shared_mem_pilot, boost::interprocess::read_write);
 	std::stringstream stream;
 
-	Properties* fcProperties = new Properties("/tmp/flightController.properties");
+	Properties* fcProperties = new Properties("/home/root/FlightController/flightController.properties");
 	pidConfigs = new PidConfig(fcProperties);
 
 	PidController* flightController = new PidController(pidConfigs);

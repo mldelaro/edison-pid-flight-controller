@@ -21,9 +21,8 @@ PidConfig::PidConfig() {
 	maxReceiverOutput = fc_constants::MAX_RECEIVER_THROTTLE;
 	correctionFrequencyHz = fc_constants::CORRECTION_FREQUENCY_HZ;
 
-	pidControllerLogEnabled = false;
-	pidSensoryGyroLogEnabled = false;
-	gyroLogEnabled = false;
+	csvPidOutputEnabled = false;
+	csvRawGyroOutputEnabled = false;
 }
 
 PidConfig::PidConfig(Properties* propertiesFile) {
@@ -64,14 +63,12 @@ PidConfig::PidConfig(Properties* propertiesFile) {
 	_getDoubleValue(&PIDMaxOutput[1], "pid-max-output-pitch");
 	_getDoubleValue(&PIDMaxOutput[2], "pid-max-output-yaw");
 
-	maxReceiverOutput = propertyFile->getIntForKey("max-receive-output");
-	correctionFrequencyHz = propertyFile->getIntForKey("correction-frequency-hz");
+	_getIntValue(&maxReceiverOutput, "max-receive-output");
+	_getIntValue(&correctionFrequencyHz, "correction-frequency-hz");
 
-	pidControllerLogEnabled = propertyFile->getBoolForKey("enable-pid-controller-log");
-	pidSensoryGyroLogEnabled = propertyFile->getBoolForKey("enable-pid-sensory-log");
-	gyroLogEnabled = propertyFile->getBoolForKey("enable-gyro-log");
+	csvPidOutputEnabled = propertyFile->getBoolForKey("enable-pid-output-csv-log");
+	csvRawGyroOutputEnabled = propertyFile->getBoolForKey("enable-raw-gyro-csv-log");
 }
-
 
 double* PidConfig::getProportionalGain() {
 	return PGain;
@@ -91,12 +88,9 @@ int PidConfig::getMaxReceiverOutput() {
 int PidConfig::getCorrectionFrequencyHz() {
 	return correctionFrequencyHz;
 }
-bool PidConfig::isPidControllerLogEnabled() {
-	return pidControllerLogEnabled;
+bool PidConfig::isCsvPidOutputEnabled() {
+	return csvPidOutputEnabled;
 }
-bool PidConfig::isPidSensoryLogEnabled() {
-	return pidSensoryGyroLogEnabled;
-}
-bool PidConfig::isGyroLogEnabled() {
-	return gyroLogEnabled;
+bool PidConfig::isCsvRawGyroOutputEnabled() {
+	return csvRawGyroOutputEnabled;
 }

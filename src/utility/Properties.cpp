@@ -8,14 +8,17 @@ Properties::Properties(string filename) {
 	if(propertyStream) {
 		cout << "Reading from properties file " << filename << "..." << endl;
 		while(std::getline(propertyStream, propertyLine)) {
-			int delimPos = propertyLine.find('=');
+			unsigned int delimPos = propertyLine.find('=');
 			if(delimPos != string::npos) {
 				configs[propertyLine.substr(0, delimPos)] = propertyLine.substr(delimPos + 1);
 			}
 		}
+
+		/* Print properties read from file
 		for(configurationMapping::iterator iter = configs.begin(); iter != configs.end(); iter++) {
 			cout << iter->first << " = " << iter->second << endl;
 		}
+		*/
 	} else {
 		std::cout << "Failed to open " << filename << std::endl;
 	}
@@ -23,12 +26,13 @@ Properties::Properties(string filename) {
 
 string Properties::getStringForKey(string key) {
 	try {
+		std::cout << "[" << key << "] = " << configs.at(key) << std::endl;
 		return configs.at(key);
 	} catch(const std::out_of_range& ex) {
-		std::cout << "Failed to get value for key " << key << std::endl;
+		std::cout << "Failed to get value for key [" << key << "]... ";
 		return "-1";
 	} catch(int ex) {
-		std::cout << "Failed to get value for key " << key << std::endl;
+		std::cout << "[EXCEPTION] Failed to get value for key " << key << std::endl;
 		return "-1";
 	}
 }

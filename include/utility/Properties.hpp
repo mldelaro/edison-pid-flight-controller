@@ -24,7 +24,6 @@ private:
 	double stringToDouble(string value);
 	int stringToInt(string value);
 	bool stringToBoolean(string value);
-
 };
 
 #endif //_PROPERTIES

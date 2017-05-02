@@ -148,14 +148,15 @@ public:
 
 	void setPwmFrequency(float frequencyHz) {
 		std::cout << "PCA9685 - Setting PWM Frequency to ~" << (int)frequencyHz << std::endl;
-		bool didSucceed = false;
 		frequencyHz *= 0.9;
 		float prescaleValue = PCA9685_CLOCK_HZ;
 		prescaleValue /= PCA9685_RESOLUTION;
 		prescaleValue /= frequencyHz;
 		prescaleValue -= 1;
 
-		//while(!didSucceed) {
+		bool didSucceed = false;
+
+		while(!didSucceed) {
 			uint8_t prescale = floor(prescaleValue);
 			uint8_t original_mode1 = readByteValueFromAddress(REG_MODE_1);
 			uint8_t new_mode1 = (original_mode1 & 0x7F) | ENABLE_SLEEP; // set sleep bit
@@ -181,7 +182,7 @@ public:
 			rx_tx_buf[0] = REG_MODE_1; // restore mode1
 			rx_tx_buf[1] = original_mode1 | 0xA1; //enable auto increment
 			writeBuffer(rx_tx_buf, 2);
-		//}
+		}
 
 
 		/*
