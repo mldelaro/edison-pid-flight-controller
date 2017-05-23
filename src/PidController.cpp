@@ -35,7 +35,6 @@ double averageLoopFrequency;
 int loopCounter;
 
 mraa::Aio* batteryVoltageAnalogInput;
-mraa::Gpio* warningLed;
 
 FCLogger* CsvLoggerPidOutput;
 FCLogger* CsvLoggerGyroRawOutput;
@@ -44,6 +43,11 @@ FCLogger* PidErrorLogger;
 
 std::mutex mutex_pilot_mem;
 
+boost::interprocess::shared_memory_object* shared_mem_tcp_receiver;
+//boost::interprocess::mapped_region* region_tcp_receiver;
+std::stringstream fcReceiver;
+std::string rx_tcp_server; // string read from tcp server's shared memory
+
 PidController::~PidController() {
 
 	esc_controller->setPwmCycle(0, 0, 1000);
@@ -51,8 +55,6 @@ PidController::~PidController() {
 	esc_controller->setPwmCycle(2, 0, 1000);
 	esc_controller->setPwmCycle(3, 0, 1000);
 
-	warningLed->~Gpio();
-	warningLed = NULL;
 	batteryVoltageAnalogInput->~Aio();
 	batteryVoltageAnalogInput = NULL;
 
@@ -130,12 +132,6 @@ PidController::PidController(PidConfig* config) {
 	PidControlLogger->logStream << "Initializing PID Flight Controller..." << std::endl;
 	PidControlLogger->logStream << "Initializing Analog and GPIO pins..." << std::endl;
 
-	warningLed = new mraa::Gpio(13, true, false);
-	if (warningLed->dir(mraa::DIR_OUT) != mraa::SUCCESS) {
-		PidErrorLogger->logStream << "Failed to set Warning LED digital pin as output" << std::endl;
-	}
-	warningLed->write(0);
-
 	batteryVoltageAnalogInput = new mraa::Aio(fc_constants::PIN_BATTERY_VOLTAGE);
 	if(batteryVoltageAnalogInput == NULL) {
 		PidErrorLogger->logStream << "WARNING: Cannot initialize analog input";
@@ -178,6 +174,22 @@ PidController::PidController(PidConfig* config) {
 	PidControlLogger->logStream << "- Degrees traveled per sample [.00006] = " << degreeTraveledPerSample << std::endl;
 	loopTimeout = (1.0 / pidConfigs->getCorrectionFrequencyHz()) * 1000000;
 	PidControlLogger->logStream << "- Loop Timeout [useconds] = " << loopTimeout << std::endl;
+/*
+	try {
+		shared_mem_tcp_receiver = new boost::interprocess::shared_memory_object(
+				boost::interprocess::open_only,
+				"shared_mem_udp_receiver",
+				boost::interprocess::read_write
+		);
+		region_tcp_receiver = new boost::interprocess::mapped_region(*shared_mem_tcp_receiver, boost::interprocess::read_only);
+
+	} catch(boost::interprocess::interprocess_exception& ex) {
+		std::cout << "Failed to open shared memory for UDP receiver..." << std::endl;
+		std::cout << "UDP Runtime Server not yet started?" << std::endl;
+		shared_mem_tcp_receiver = NULL;
+		region_tcp_receiver = NULL;
+	}
+*/
 }
 
 void PidController::_TEST_ROTORS() {
@@ -210,7 +222,6 @@ void PidController::_STOP() {
 }
 
 void PidController::setup() {
-	warningLed->write(1);
 	PidControlLogger->logStream << "ENTER SETUP" << std::endl;
 
 	currentStatus = SETUP;
@@ -242,7 +253,6 @@ void PidController::setup() {
 	PidControlLogger->logStream << "Finished Gyro Callibration..." << std::endl;
 	currentStatus = START_MOTORS;
 
-	warningLed->write(0);
 	PidControlLogger->logStream << "EXIT SETUP " << std::endl;
 }
 
@@ -259,6 +269,8 @@ void PidController::loop(bool rotorsEnabled) {
 	gyro_sensorNormalized[PITCH] = gyro->getGyro_pitch() - gyro_sensorOffset[PITCH];
 	gyro_sensorNormalized[YAW] = gyro->getGyro_yaw() - gyro_sensorOffset[YAW];
 
+	gyro_sensorNormalized[YAW] *= -1; // rotate yaw to match conventions
+
 	gyro_sensorPidInput[ROLL] = (gyro_sensorPidInput[ROLL] * 0.7) + ((gyro_sensorNormalized[ROLL] / fc_constants::GYRO_1DPS_RAW_OUTPUT) * 0.3);
 	gyro_sensorPidInput[PITCH] = (gyro_sensorPidInput[PITCH] * 0.7) + ((gyro_sensorNormalized[PITCH] / fc_constants::GYRO_1DPS_RAW_OUTPUT) * 0.3);
 	gyro_sensorPidInput[YAW] = (gyro_sensorPidInput[YAW] * 0.7) + ((gyro_sensorNormalized[YAW] / fc_constants::GYRO_1DPS_RAW_OUTPUT) * 0.3);
@@ -270,10 +282,10 @@ void PidController::loop(bool rotorsEnabled) {
 	angleTraveled[ROLL] += gyro_sensorNormalized[ROLL] * degreeTraveledPerSample;
 
 	// Translate changes in yaw to traveled angles in pitch and roll
-	angleTraveled[PITCH] -= angleTraveled[ROLL] * sin(gyro_sensorNormalized[YAW] * fc_constants::RATIO_DEGREE_TO_RADIAN);
-	angleTraveled[ROLL] += angleTraveled[PITCH] * sin(gyro_sensorNormalized[YAW] * fc_constants::RATIO_DEGREE_TO_RADIAN);
+	angleTraveled[PITCH] += angleTraveled[ROLL] * sin(gyro_sensorNormalized[YAW] * fc_constants::RATIO_DEGREE_TO_RADIAN);
+	angleTraveled[ROLL] -= angleTraveled[PITCH] * sin(gyro_sensorNormalized[YAW] * fc_constants::RATIO_DEGREE_TO_RADIAN);
 
-	// Accelerometer angle calculations
+	/* Accelerometer angle calculations*/
 	accVector = sqrt(
 						(gyro->getAcc_x()*gyro->getAcc_x()) +
 						(gyro->getAcc_y()*gyro->getAcc_y()) +
@@ -291,15 +303,24 @@ void PidController::loop(bool rotorsEnabled) {
 
 	// Trim Acc calibration
 	//accAngleMeasuredFromNormalG[PITCH] -= 0.7;
-	//accAngleMeasuredFromNormalG[ROLL] += 0.25;
+	accAngleMeasuredFromNormalG[ROLL] += 1.1;
 
 
 	// Drift compensation
-	angleTraveled[PITCH] = angleTraveled[PITCH]*0.996 + accAngleMeasuredFromNormalG[PITCH] * 0.004;
-	angleTraveled[ROLL] = angleTraveled[ROLL]*0.996 + accAngleMeasuredFromNormalG[ROLL] * 0.004;
+	angleTraveled[PITCH] = angleTraveled[PITCH]*0.9996 + accAngleMeasuredFromNormalG[PITCH] * 0.0004;
+	angleTraveled[ROLL] = angleTraveled[ROLL]*0.9996 + accAngleMeasuredFromNormalG[ROLL] * 0.0004;
 
 	autoLevelSelfAdjust[PITCH] = angleTraveled[PITCH] * 15;
 	autoLevelSelfAdjust[ROLL] = angleTraveled[ROLL] * 15;
+
+	/* Read from TCP Server's shared memory
+	if(region_tcp_receiver != NULL) {
+		std::stringstream stream;
+		stream.rdbuf()->pubsetbuf((char*)region_tcp_receiver->get_address(), region_tcp_receiver->get_size());
+		rx_tcp_server = stream.str();
+	} else {
+
+	}*/
 
 	/* Start takeoff */
 	if(currentStatus == START_MOTORS) {
@@ -321,6 +342,8 @@ void PidController::loop(bool rotorsEnabled) {
 
 	gyro->read();
 	calculatePidController();
+
+
 
 	if(currentStatus == RUNNING) {
 		// limit throttle to be able to compensate for max feedback from PID controller
@@ -355,13 +378,7 @@ void PidController::loop(bool rotorsEnabled) {
 		pidRunningThrottle[3] = 1000;
 	}
 
-	boost::interprocess::shared_memory_object shared_mem_fc_receiver(
-			boost::interprocess::open_only,
-			"shared_mem_fc_receiver",
-			boost::interprocess::read_write
-	);
-	boost::interprocess::mapped_region region(shared_mem_fc_receiver, boost::interprocess::read_write);
-	std::stringstream fcReceiver;
+
 
 	if(rotorsEnabled) {
 		esc_controller->setPwmCycle(0, 0, pidRunningThrottle[0]);
@@ -377,6 +394,7 @@ void PidController::loop(bool rotorsEnabled) {
 	loopRunningTime = elapsedLoopTime.count();
 	remainingLoopTimeout = loopTimeout - loopRunningTime;
 
+	//Get total running time
 	//auto totalElapsedTime = std::chrono::duration_cast<std::chrono::microseconds>(loopEndTime - pidStartTime);
 	//pidRunningTime = totalElapsedTime.count();
 
@@ -406,9 +424,11 @@ void PidController::loop(bool rotorsEnabled) {
 
 	if((int)(loopCounter % (1 * pidConfigs->getCorrectionFrequencyHz())) == (int)(0)) {
 		if(!rotorsEnabled) {
+//			std::cout << "TCP Receive: " << rx_tcp_server << std::endl;
+
 //			std::cout << "Running Time: " << remainingLoopTimeout << std::endl;
-//			std::cout << "Roll Traveled: " << angleTraveled[ROLL] << std::endl;
-			std::cout << "Pitch Traveled: " << angleTraveled[PITCH] << std::endl;
+			std::cout << "Roll Traveled: " << angleTraveled[ROLL] << std::endl;
+//			std::cout << "Pitch Traveled: " << angleTraveled[PITCH] << std::endl;
 
 			// for use with accelerometer callibration [helps trim acc value]
 //			std::cout << "AccPitch: " << accAngleMeasuredFromNormalG[PITCH] << std::endl;
@@ -441,10 +461,8 @@ void PidController::loop(bool rotorsEnabled) {
 
 	if(remainingLoopTimeout < 100) {
 		PidErrorLogger->logStream << "Running slow by " << remainingLoopTimeout << std::endl;
-		warningLed->write(1);
 	} else {
 		usleep(remainingLoopTimeout - 100);
-		warningLed->write(0);
 	}
 }
 
@@ -452,7 +470,7 @@ void PidController::calculatePidController() {
 	// iterate PID Calculator for roll, pitch, and yaw
 	for(int i = 0; i < 3; i++) {
 		pidRunningError[i] = gyro_sensorPidInput[i] - pidSetPoint[i];
-		pidIntegralMemory[i] += fc_constants::PID_INTEGRAL_GAIN[i] * pidRunningError[i]; // I-Controller
+		pidIntegralMemory[i] += fc_constants::PID_INTEGRAL_GAIN[i] * pidRunningError[i];
 		if(pidIntegralMemory[i] > fc_constants::PID_MAX_OUTPUT[i]) {
 			pidIntegralMemory[i] = fc_constants::PID_MAX_OUTPUT[i];
 		} else if (pidIntegralMemory[i] < (-1 * fc_constants::PID_MAX_OUTPUT[i])) {
@@ -468,7 +486,7 @@ void PidController::calculatePidController() {
 void* PidController::p_loop() {
 	boost::interprocess::shared_memory_object shared_mem_pilot(
 			boost::interprocess::open_only,
-			"shared_mem_pilot",
+			"shared_mem_udp_receiver", //"shared_mem_pilot",
 			boost::interprocess::read_write
 	);
 	boost::interprocess::mapped_region region(shared_mem_pilot, boost::interprocess::read_write);
@@ -490,28 +508,74 @@ void* PidController::p_loop() {
 		if(rx_host.c_str()[0] != '\0') {
 			std::memset(region.get_address(), '\0', region.get_size());
 
-			if(strncmp(rx_host.c_str(), "test", 5) == 0) {
+			if(strncmp(rx_host.c_str(), "T", 1) == 0) {
 				std::cout << "Entering testing mode...\n";
 				flightController->_TEST_ROTORS();
 				didStartFlight = false;
-			} else if(strncmp(rx_host.c_str(), "start", 5) == 0) {
+			} else if(strncmp(rx_host.c_str(), "V", 1) == 0) {
 				std::cout << "STARTING FLIGHT CONTROLLER...\n";
 				flightController->iterativeLoop(true);
 				enabledRotors = true;
 				didStartFlight = true;
-			} else if(strncmp(rx_host.c_str(), "fstart", 6) == 0) {
+			} else if(strncmp(rx_host.c_str(), "U", 1) == 0) {
 				std::cout << "[FALSE]STARTING FLIGHT CONTROLLER...\n";
 				flightController->_STOP();
 				flightController->iterativeLoop(false);
 				enabledRotors = false;
 				didStartFlight = true;
-			} else if(strncmp(rx_host.c_str(), "log", 4) == 0) {
-
-			} else if(strncmp(rx_host.c_str(), "stop", 5) == 0) {
+			} else if(strncmp(rx_host.c_str(), "W", 1) == 0) {
 				std::cout << "STOPPING FLIGHT CONTROLLER...\n";
 				flightController->_STOP();
 				didStartFlight = false;
 				enabledRotors = false;
+			} else if(strncmp(rx_host.c_str(), "S", 1) == 0) {
+				if(didStartFlight) {
+					flightController->iterativeLoop(enabledRotors);
+				} else {
+					usleep(500000);
+				}
+			} else if(strncmp(rx_host.c_str(), "F", 1) == 0) {
+				//TODO: go forward
+				if(didStartFlight) {
+					flightController->iterativeLoop(enabledRotors);
+				} else {
+					usleep(500000);
+				}
+			} else if(strncmp(rx_host.c_str(), "B", 1) == 0) {
+				//TODO: go backward
+				if(didStartFlight) {
+					flightController->iterativeLoop(enabledRotors);
+				} else {
+					usleep(500000);
+				}
+			} else if(strncmp(rx_host.c_str(), "L", 1) == 0) {
+				//TODO: go Left
+				if(didStartFlight) {
+					flightController->iterativeLoop(enabledRotors);
+				} else {
+					usleep(500000);
+				}
+			} else if(strncmp(rx_host.c_str(), "R", 1) == 0) {
+				//TODO: go right
+				if(didStartFlight) {
+					flightController->iterativeLoop(enabledRotors);
+				} else {
+					usleep(500000);
+				}
+			} else if(strncmp(rx_host.c_str(), "U", 1) == 0) {
+				//TODO: go up
+				if(didStartFlight) {
+					flightController->iterativeLoop(enabledRotors);
+				} else {
+					usleep(500000);
+				}
+			} else if(strncmp(rx_host.c_str(), "D", 1) == 0) {
+				//TODO: go down
+				if(didStartFlight) {
+					flightController->iterativeLoop(enabledRotors);
+				} else {
+					usleep(500000);
+				}
 			} else {
 				std::cout << "Failed command: " << rx_host << " of length " << rx_host.length() << std::endl;
 				sleep(3);
@@ -522,7 +586,7 @@ void* PidController::p_loop() {
 			if(didStartFlight) {
 				flightController->iterativeLoop(enabledRotors);
 			} else {
-				sleep(1);
+				usleep(500000);
 			}
 		}
 	}

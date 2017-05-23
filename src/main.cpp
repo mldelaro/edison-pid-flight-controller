@@ -37,7 +37,7 @@ int main()
 	);
 	shared_mem_pilot.truncate(1002);
 	boost::interprocess::mapped_region region(shared_mem_pilot, boost::interprocess::read_write);
-	//std::memset(region.get_address(), 1, region.get_size());
+	std::memset(region.get_address(), 1, region.get_size());
 	std::memset(region.get_address(), '\0', region.get_size());
 	std::strncpy((char*)region.get_address(), "0", 1000);
 
