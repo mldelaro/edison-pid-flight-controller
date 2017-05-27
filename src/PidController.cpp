@@ -539,42 +539,48 @@ void* PidController::p_loop() {
 				if(didStartFlight) {
 					flightController->iterativeLoop(enabledRotors);
 				} else {
-					usleep(500000);
+					usleep(250000);
 				}
 			} else if(strncmp(rx_host.c_str(), "B", 1) == 0) {
 				//TODO: go backward
 				if(didStartFlight) {
 					flightController->iterativeLoop(enabledRotors);
 				} else {
-					usleep(500000);
+					usleep(250000);
 				}
 			} else if(strncmp(rx_host.c_str(), "L", 1) == 0) {
 				//TODO: go Left
 				if(didStartFlight) {
 					flightController->iterativeLoop(enabledRotors);
 				} else {
-					usleep(500000);
+					usleep(250000);
 				}
 			} else if(strncmp(rx_host.c_str(), "R", 1) == 0) {
-				//TODO: go right
+				//TODO: go Right
 				if(didStartFlight) {
 					flightController->iterativeLoop(enabledRotors);
 				} else {
-					usleep(500000);
+					usleep(250000);
 				}
 			} else if(strncmp(rx_host.c_str(), "U", 1) == 0) {
 				//TODO: go up
 				if(didStartFlight) {
+					if(pidRunningBaselineThrottle < 1900) {
+						pidRunningBaselineThrottle += 2;
+					}
 					flightController->iterativeLoop(enabledRotors);
 				} else {
-					usleep(500000);
+					usleep(250000);
 				}
 			} else if(strncmp(rx_host.c_str(), "D", 1) == 0) {
 				//TODO: go down
 				if(didStartFlight) {
+					if(pidRunningBaselineThrottle > 1400) {
+						pidRunningBaselineThrottle -= 5;
+					}
 					flightController->iterativeLoop(enabledRotors);
 				} else {
-					usleep(500000);
+					usleep(250000);
 				}
 			} else {
 				std::cout << "Failed command: " << rx_host << " of length " << rx_host.length() << std::endl;
