@@ -10,10 +10,10 @@
 #include <sstream> // ostringstream
 
 
-#include "../include/PidController.hpp"
+#include "../include/FlightController.hpp"
 #include "../include/FCLogger.hpp"
 
-PidController *flightController;
+//PidController *flightController;
 volatile int* channels[4];
 
 
@@ -30,6 +30,7 @@ int main()
 		return -1;
 	}
 
+
 	boost::interprocess::shared_memory_object shared_mem_pilot(
 			boost::interprocess::open_or_create,
 			"shared_mem_pilot",
@@ -44,9 +45,12 @@ int main()
 	//Start PID Controller
 	std::cout << "Starting PID Controller..." << std::endl;
 	std::cout << "Spawning pthread..." << std::endl;
-	sleep(1);
 
-	/*start the controller from a thread*/
+
+	FlightController* flightController = new FlightController();
+	flightController->run();
+
+	/*start the controller from a thread*
 	pthread_t flightControllerThread;
 	pthread_create(&flightControllerThread, NULL, &PidController::fcLoopHelper, channels);
 	std::string pilotMemStream = "";
@@ -59,6 +63,7 @@ int main()
 		}
 		sleep(3);
 	}
+	*/
 
 	std::cout << "exit"  << std::endl;
 	return mraa::SUCCESS;
