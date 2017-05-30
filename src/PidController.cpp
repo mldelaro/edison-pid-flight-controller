@@ -486,12 +486,11 @@ void PidController::calculatePidController() {
 void* PidController::p_loop() {
 	boost::interprocess::shared_memory_object shared_mem_pilot(
 			boost::interprocess::open_only,
-			"shared_mem_udp_receiver", //"shared_mem_pilot",
+			"shared_mem_pilot",
 			boost::interprocess::read_write
 	);
 	boost::interprocess::mapped_region region(shared_mem_pilot, boost::interprocess::read_write);
 	std::stringstream stream;
-
 	Properties* fcProperties = new Properties("/home/root/FlightController/flightController.properties");
 	pidConfigs = new PidConfig(fcProperties);
 
@@ -517,7 +516,7 @@ void* PidController::p_loop() {
 				flightController->iterativeLoop(true);
 				enabledRotors = true;
 				didStartFlight = true;
-			} else if(strncmp(rx_host.c_str(), "U", 1) == 0) {
+			} else if(strncmp(rx_host.c_str(), "Y", 1) == 0) {
 				std::cout << "[FALSE]STARTING FLIGHT CONTROLLER...\n";
 				flightController->_STOP();
 				flightController->iterativeLoop(false);

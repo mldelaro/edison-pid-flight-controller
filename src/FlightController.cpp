@@ -1,12 +1,10 @@
 #include "../include/FlightController.hpp"
 
-
-
 FlightController::FlightController() {
 	bool udpRuntimeFound = false;
 	while(!udpRuntimeFound) {
 		try {
-			runtimeFlightControllerMemory = new boost::interprocess::shared_memory_object(
+			runtimeUdpReceiver = new boost::interprocess::shared_memory_object(
 					boost::interprocess::open_only,
 					"shared_mem_udp_receiver",
 					boost::interprocess::read_write
@@ -17,12 +15,25 @@ FlightController::FlightController() {
 			sleep(3);
 		}
 	}
+
+	try {
+		runtimePidControllerMemory = new boost::interprocess::shared_memory_object(
+				boost::interprocess::open_only,
+				"shared_mem_pilot",
+				boost::interprocess::read_write
+		);
+		udpRuntimeFound = true;
+	}  catch(boost::interprocess::interprocess_exception& ex) {
+		std::cout << "Failed to open shared memory for PID Controller..." << std::endl;
+	}
+
 	currentState = FlightController::TransitionState::init;
 	lastEvent = FlightController::TransitionEvent::rxNeutral;
 }
 
 FlightController::~FlightController() {
-	runtimeFlightControllerMemory = NULL;
+	runtimeUdpReceiver = NULL;
+	runtimePidControllerMemory = NULL;
 }
 
 void FlightController::run() {
@@ -44,7 +55,7 @@ void FlightController::run() {
 char FlightController::_parseEventCharFromRxSharedMemory() {
 	// read event from shared memory
 	std::stringstream stream;
-	boost::interprocess::mapped_region region(*runtimeFlightControllerMemory, boost::interprocess::read_write);
+	boost::interprocess::mapped_region region(*runtimeUdpReceiver, boost::interprocess::read_write);
 	stream.rdbuf()->pubsetbuf((char*)region.get_address(), region.get_size());
 	std::string rxSharedMemory = stream.str();
 
@@ -114,32 +125,57 @@ void FlightController::_updateState(TransitionEvent rxEvent) {
 	currentState = newState;
 }
 
-
-
-
 /* BRANCHING FLIGHT CONTROLLER*/
 void FlightController::_iterateCurrentState() {
 	switch(currentState) {
 		case TransitionState::init :
-			std::cout << "Currently at INIT" << std::endl;
-
+			{
+				std::cout << "==== INIT ====" << std::endl;
+				std::cout << "Reading PID Configs" << std::endl;
+				pthread_create(&flightControllerThread, NULL, &PidController::fcLoopHelper, channels);
+				pilotMemStream = "S";
+				currentState = TransitionState::ready;
+			}
 			break;
 		case TransitionState::ready :
-			std::cout << "Currently at READY" << std::endl;
-			break;
+			{
+				std::cout << "Currently at READY" << std::endl;
+				pilotMemStream = "S";
+				break;
+			}
 		case TransitionState::test :
+		{
 			std::cout << "Currently at TEST" << std::endl;
+			pilotMemStream = "T";
 			break;
+		}
 		case TransitionState::fstart :
-			std::cout << "Currently at FSTART" << std::endl;
-			break;
+			{
+				std::cout << "Currently at FSTART" << std::endl;
+				pilotMemStream = "Y";
+				break;
+			}
 		case TransitionState::flight :
-			std::cout << "Currently at FLIGHT" << std::endl;
-			break;
+			{
+				std::cout << "Currently at FLIGHT" << std::endl;
+				pilotMemStream = "V";
+				break;
+			}
 		default:
-			std::cout << "Currently at BAD_STATE" << std::endl;
-			break;
+			{
+				std::cout << "Currently at BAD_STATE" << std::endl;
+				break;
+			}
 	}
+
+	boost::interprocess::mapped_region region(*runtimePidControllerMemory, boost::interprocess::read_write);
+	std::memset(region.get_address(), '\0', region.get_size());
+	std::strncpy((char*)region.get_address(), pilotMemStream.c_str(), 1000);
+
+	if(strncmp(pilotMemStream.c_str(), "exit", 5) == 0) {
+		pthread_join (flightControllerThread, NULL);
+	}
+
 	usleep(1000000);
 }
 

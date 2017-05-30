@@ -6,6 +6,11 @@
 #include <sstream>	//stringstream
 #include <iostream>	//cout
 
+
+#include "../include/utility/Properties.hpp"
+#include "../include/PidController.hpp"
+
+
 class FlightController
 {
 public:
@@ -13,21 +18,13 @@ public:
 	~FlightController();
 	void run();
 
-	/* FOR USE WITH MULTITHREADING *
-	void* p_loop();
-
-	static void*(fcLoopHelper)(void *context) {
-		return ((PidController *) context) -> p_loop();
-	}
-	*/
-
 private:
 	enum TransitionState { init, ready, test, fstart, flight, BAD_STATE};
 	enum class TransitionEvent : char {
 							rxNeutral = 'S',
 							rxTest = 'T',
 							rxStart = 'V',
-							rxFalseStart = 'U',
+							rxFalseStart = 'Y',
 							rxStop = 'W',
 							rxDirection = 'X' //translated from up/down/left/right/forward/backward
 						 };
@@ -42,9 +39,15 @@ private:
 			{TransitionState::flight,	TransitionState::flight,	TransitionState::flight,	TransitionState::flight,	TransitionState::ready,		TransitionState::flight}		// flight
 	};
 
-	boost::interprocess::shared_memory_object* runtimeFlightControllerMemory;
+	boost::interprocess::shared_memory_object* runtimeUdpReceiver;
+	boost::interprocess::shared_memory_object* runtimePidControllerMemory;
 	TransitionState currentState;
 	TransitionEvent lastEvent;
+
+	pthread_t flightControllerThread;
+	Properties* flightControllerProperties;
+	volatile int* channels[4];
+	std::string pilotMemStream;
 
 	char _parseEventCharFromRxSharedMemory();
 	TransitionEvent _charToEvent(char event);
