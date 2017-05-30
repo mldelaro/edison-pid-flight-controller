@@ -49,11 +49,16 @@ private:
 	volatile int* channels[4];
 	std::string pilotMemStream;
 
+	PidController* pidController;
+
 	char _parseEventCharFromRxSharedMemory();
 	TransitionEvent _charToEvent(char event);
 	int _eventToIndex(TransitionEvent event);
 	void _updateState(TransitionEvent rxEvent);
 	void _iterateCurrentState();
+
+
+
 };
 
 #endif //_FLIGHT_CONTROLLER

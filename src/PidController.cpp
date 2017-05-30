@@ -174,22 +174,6 @@ PidController::PidController(PidConfig* config) {
 	PidControlLogger->logStream << "- Degrees traveled per sample [.00006] = " << degreeTraveledPerSample << std::endl;
 	loopTimeout = (1.0 / pidConfigs->getCorrectionFrequencyHz()) * 1000000;
 	PidControlLogger->logStream << "- Loop Timeout [useconds] = " << loopTimeout << std::endl;
-/*
-	try {
-		shared_mem_tcp_receiver = new boost::interprocess::shared_memory_object(
-				boost::interprocess::open_only,
-				"shared_mem_udp_receiver",
-				boost::interprocess::read_write
-		);
-		region_tcp_receiver = new boost::interprocess::mapped_region(*shared_mem_tcp_receiver, boost::interprocess::read_only);
-
-	} catch(boost::interprocess::interprocess_exception& ex) {
-		std::cout << "Failed to open shared memory for UDP receiver..." << std::endl;
-		std::cout << "UDP Runtime Server not yet started?" << std::endl;
-		shared_mem_tcp_receiver = NULL;
-		region_tcp_receiver = NULL;
-	}
-*/
 }
 
 void PidController::_TEST_ROTORS() {
@@ -215,10 +199,10 @@ void PidController::_TEST_ROTORS() {
 }
 
 void PidController::_STOP() {
-	esc_controller->setPwmCycle(0, 0, 1000);
-	esc_controller->setPwmCycle(1, 0, 1000);
-	esc_controller->setPwmCycle(2, 0, 1000);
-	esc_controller->setPwmCycle(3, 0, 1000);
+	esc_controller->setPwmCycle(0, 0, 800);
+	esc_controller->setPwmCycle(1, 0, 800);
+	esc_controller->setPwmCycle(2, 0, 800);
+	esc_controller->setPwmCycle(3, 0, 800);
 }
 
 void PidController::setup() {

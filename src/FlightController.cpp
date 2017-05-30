@@ -131,34 +131,33 @@ void FlightController::_iterateCurrentState() {
 		case TransitionState::init :
 			{
 				std::cout << "==== INIT ====" << std::endl;
-				std::cout << "Reading PID Configs" << std::endl;
-				pthread_create(&flightControllerThread, NULL, &PidController::fcLoopHelper, channels);
 				pilotMemStream = "S";
+				Properties* pidConfigProperties = new Properties("~/runtime/FlightController/flightController.properties");
+				PidConfig* pidConfig = new PidConfig(pidConfigProperties);
+				pidController = new PidController(pidConfig);
+				pidController->setup();
 				currentState = TransitionState::ready;
 			}
 			break;
 		case TransitionState::ready :
 			{
-				std::cout << "Currently at READY" << std::endl;
-				pilotMemStream = "S";
+				pidController->_STOP();
 				break;
 			}
 		case TransitionState::test :
 		{
-			std::cout << "Currently at TEST" << std::endl;
-			pilotMemStream = "T";
+			pidController->_TEST_ROTORS();
+			currentState = TransitionState::ready;
 			break;
 		}
 		case TransitionState::fstart :
 			{
-				std::cout << "Currently at FSTART" << std::endl;
-				pilotMemStream = "Y";
+				pidController->iterativeLoop(false);
 				break;
 			}
 		case TransitionState::flight :
 			{
-				std::cout << "Currently at FLIGHT" << std::endl;
-				pilotMemStream = "V";
+				pidController->iterativeLoop(true);
 				break;
 			}
 		default:
@@ -167,16 +166,6 @@ void FlightController::_iterateCurrentState() {
 				break;
 			}
 	}
-
-	boost::interprocess::mapped_region region(*runtimePidControllerMemory, boost::interprocess::read_write);
-	std::memset(region.get_address(), '\0', region.get_size());
-	std::strncpy((char*)region.get_address(), pilotMemStream.c_str(), 1000);
-
-	if(strncmp(pilotMemStream.c_str(), "exit", 5) == 0) {
-		pthread_join (flightControllerThread, NULL);
-	}
-
-	usleep(1000000);
 }
 
 
