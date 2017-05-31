@@ -1,6 +1,8 @@
 #include "../include/FlightController.hpp"
 
 FlightController::FlightController() {
+	pidController = NULL;
+	flightControllerProperties = NULL;
 	bool udpRuntimeFound = false;
 	while(!udpRuntimeFound) {
 		try {
@@ -137,6 +139,7 @@ void FlightController::_iterateCurrentState() {
 				pidController = new PidController(pidConfig);
 				pidController->setup();
 				currentState = TransitionState::ready;
+				std::cout << "==== READY ====" << std::endl;
 			}
 			break;
 		case TransitionState::ready :
@@ -146,8 +149,10 @@ void FlightController::_iterateCurrentState() {
 			}
 		case TransitionState::test :
 		{
+			std::cout << "==== TEST ====" << std::endl;
 			pidController->_TEST_ROTORS();
 			currentState = TransitionState::ready;
+			std::cout << "==== READY ====" << std::endl;
 			break;
 		}
 		case TransitionState::fstart :

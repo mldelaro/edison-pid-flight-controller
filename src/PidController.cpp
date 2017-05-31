@@ -180,7 +180,16 @@ void PidController::_TEST_ROTORS() {
 	std::cout << "RUNNING TEST"<< std::endl;
 	//esc_controller->setPwmFrequency(300);
 	sleep(1);
-	for(int i = 0; i < 4; i++) {
+	int i = 1100;
+	while(i < 2300) {
+		esc_controller->setPwmCycle(0, 0, i);
+		std::cout << "STARTUP_" << i << "..."<< std::endl;
+		esc_controller->setPwmCycle(0, 0, i);
+		i += 50;
+		sleep(1);
+	}
+
+	/*for(int i = 0; i < 4; i++) {
 		esc_controller->setPwmCycle(i, 0, 1100);
 		std::cout << "STARTUP_" << i << "..."<< std::endl;
 		esc_controller->setPwmCycle(i, 0, 1100);
@@ -195,7 +204,7 @@ void PidController::_TEST_ROTORS() {
 		std::cout << "STOP_" << i << "..."<< std::endl;
 		esc_controller->setPwmCycle(i, 0, 1000);
 		sleep(1);
-	}
+	}*/
 }
 
 void PidController::_STOP() {
@@ -349,8 +358,8 @@ void PidController::loop(bool rotorsEnabled) {
 
 		// limit esc pulse to 2000us
 		for(int i = 0; i < 4; i++) {
-			if(pidRunningThrottle[i] > 2000) {
-				pidRunningThrottle[i] = 2000;
+			if(pidRunningThrottle[i] > pidConfigs->getMaxThrottle()) {
+				pidRunningThrottle[i] = pidConfigs->getMaxThrottle();
 			}
 		}
 
@@ -411,7 +420,7 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "TCP Receive: " << rx_tcp_server << std::endl;
 
 //			std::cout << "Running Time: " << remainingLoopTimeout << std::endl;
-			std::cout << "Roll Traveled: " << angleTraveled[ROLL] << std::endl;
+//			std::cout << "Roll Traveled: " << angleTraveled[ROLL] << std::endl;
 //			std::cout << "Pitch Traveled: " << angleTraveled[PITCH] << std::endl;
 
 			// for use with accelerometer callibration [helps trim acc value]

@@ -44,7 +44,6 @@ private:
 	TransitionState currentState;
 	TransitionEvent lastEvent;
 
-	pthread_t flightControllerThread;
 	Properties* flightControllerProperties;
 	volatile int* channels[4];
 	std::string pilotMemStream;

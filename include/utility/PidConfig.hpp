@@ -13,6 +13,7 @@ public:
 	double* getDerivativeGain();
 	double* getMaxPidOutput();
 	int getMaxReceiverOutput();
+	int getMaxThrottle();
 	int getCorrectionFrequencyHz();
 	bool isCsvPidOutputEnabled();
 	bool isCsvRawGyroOutputEnabled();
@@ -24,6 +25,7 @@ private:
 	double DGain[3];
 	double PIDMaxOutput[3];
 	int maxReceiverOutput;
+	int maxThrottle;
 	int correctionFrequencyHz;
 	bool csvPidOutputEnabled;
 	bool csvRawGyroOutputEnabled;
