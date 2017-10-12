@@ -180,6 +180,9 @@ void PidController::_TEST_ROTORS() {
 	std::cout << "RUNNING TEST"<< std::endl;
 	//esc_controller->setPwmFrequency(300);
 	sleep(1);
+
+
+	/* Throttle test
 	int i = 1100;
 	while(i < 2300) {
 		esc_controller->setPwmCycle(0, 0, i);
@@ -188,8 +191,9 @@ void PidController::_TEST_ROTORS() {
 		i += 50;
 		sleep(1);
 	}
+	*/
 
-	/*for(int i = 0; i < 4; i++) {
+	for(int i = 0; i < 4; i++) {
 		esc_controller->setPwmCycle(i, 0, 1100);
 		std::cout << "STARTUP_" << i << "..."<< std::endl;
 		esc_controller->setPwmCycle(i, 0, 1100);
@@ -204,7 +208,7 @@ void PidController::_TEST_ROTORS() {
 		std::cout << "STOP_" << i << "..."<< std::endl;
 		esc_controller->setPwmCycle(i, 0, 1000);
 		sleep(1);
-	}*/
+	}
 }
 
 void PidController::_STOP() {
@@ -317,7 +321,10 @@ void PidController::loop(bool rotorsEnabled) {
 
 	/* Start takeoff */
 	if(currentStatus == START_MOTORS) {
-		pidRunningBaselineThrottle = 1700;
+		pidRunningBaselineThrottle = pidConfigs->getHoveringBaselineThrottle();
+		pidSetPoint[ROLL] = 0;
+		pidSetPoint[PITCH] = 0;
+		pidSetPoint[YAW] = 0;
 
 		angleTraveled[PITCH] = accAngleMeasuredFromNormalG[PITCH];
 		angleTraveled[ROLL] = accAngleMeasuredFromNormalG[ROLL];
@@ -335,8 +342,6 @@ void PidController::loop(bool rotorsEnabled) {
 
 	gyro->read();
 	calculatePidController();
-
-
 
 	if(currentStatus == RUNNING) {
 		// limit throttle to be able to compensate for max feedback from PID controller
@@ -356,13 +361,6 @@ void PidController::loop(bool rotorsEnabled) {
 		// ROTOR 4 - Clockwise			@ rear right
 		pidRunningThrottle[3] = pidRunningBaselineThrottle + pidOutput[PITCH] + pidOutput[ROLL] + pidOutput[YAW];
 
-		// limit esc pulse to 2000us
-		for(int i = 0; i < 4; i++) {
-			if(pidRunningThrottle[i] > pidConfigs->getMaxThrottle()) {
-				pidRunningThrottle[i] = pidConfigs->getMaxThrottle();
-			}
-		}
-
 	} else {
 		// feed ESC 1000us pulses
 		pidRunningThrottle[0] = 1000;
@@ -371,9 +369,15 @@ void PidController::loop(bool rotorsEnabled) {
 		pidRunningThrottle[3] = 1000;
 	}
 
-
-
+	// SET THROTTLE FOR EACH ROTOR
 	if(rotorsEnabled) {
+		// limit esc pulse
+		for(int i = 0; i < 4; i++) {
+			if(pidRunningThrottle[i] > pidConfigs->getMaxThrottle()) {
+				pidRunningThrottle[i] = pidConfigs->getMaxThrottle();
+			}
+		}
+
 		esc_controller->setPwmCycle(0, 0, pidRunningThrottle[0]);
 		esc_controller->setPwmCycle(1, 0, pidRunningThrottle[1]);
 		esc_controller->setPwmCycle(2, 0, pidRunningThrottle[2]);
@@ -419,6 +423,8 @@ void PidController::loop(bool rotorsEnabled) {
 		if(!rotorsEnabled) {
 //			std::cout << "TCP Receive: " << rx_tcp_server << std::endl;
 
+//			std::cout << "Running Baseline: " << pidRunningBaselineThrottle << std::endl;
+
 //			std::cout << "Running Time: " << remainingLoopTimeout << std::endl;
 //			std::cout << "Roll Traveled: " << angleTraveled[ROLL] << std::endl;
 //			std::cout << "Pitch Traveled: " << angleTraveled[PITCH] << std::endl;
@@ -427,13 +433,9 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "AccPitch: " << accAngleMeasuredFromNormalG[PITCH] << std::endl;
 //			std::cout << "AccRoll: " << accAngleMeasuredFromNormalG[ROLL] << std::endl;
 
-//			gyro_sensorNormalized[ROLL] = gyro->getGyro_roll() - gyro_sensorOffset[ROLL];
-//			gyro_sensorNormalized[PITCH] = gyro->getGyro_pitch() - gyro_sensorOffset[PITCH];
-//			gyro_sensorNormalized[YAW] = gyro->getGyro_yaw() - gyro_sensorOffset[YAW];
-
 //			std::cout << "Roll Gyro Output: " << gyro_sensorNormalized[ROLL] << std::endl;
 //			std::cout << "Pitch Gyro Ouptut: " << gyro_sensorNormalized[PITCH] << std::endl;
-//			std::cout << "Yaw Gyro Ouptut: " << gyro_sensorNormalized[YAW] << std::endl;
+			std::cout << "Yaw Gyro Ouptut: " << gyro_sensorNormalized[YAW] << std::endl;
 
 		}
 
@@ -458,6 +460,44 @@ void PidController::loop(bool rotorsEnabled) {
 		usleep(remainingLoopTimeout - 100);
 	}
 }
+
+
+
+void PidController::incrementBaselineThrottle(int value) {
+	if(value < 0) {
+		if(pidRunningBaselineThrottle > 1600) {
+			pidRunningBaselineThrottle = pidRunningBaselineThrottle + value;
+		} else {
+			pidRunningBaselineThrottle = 1601;
+		}
+	}
+
+	if(value > 0) {
+		if (pidRunningBaselineThrottle < 2000) {
+			pidRunningBaselineThrottle = pidRunningBaselineThrottle + value;
+		} else {
+			pidRunningBaselineThrottle = 1999;
+		}
+	}
+
+
+
+}
+
+void PidController::setRollDPS(int dps) {
+	pidSetPoint[ROLL] = dps;
+}
+
+void PidController::setPitchDPS(int dps) {
+	pidSetPoint[PITCH] = dps;
+
+}
+
+void PidController::setYawDPS(int dps) {
+	pidSetPoint[YAW] = dps;
+
+}
+
 
 void PidController::calculatePidController() {
 	// iterate PID Calculator for roll, pitch, and yaw

@@ -4,6 +4,10 @@ FlightController::FlightController() {
 	pidController = NULL;
 	flightControllerProperties = NULL;
 	bool udpRuntimeFound = false;
+	runningSetPoints[0] = 0;
+	runningSetPoints[1] = 0;
+	runningSetPoints[2] = 0;
+
 	while(!udpRuntimeFound) {
 		try {
 			runtimeUdpReceiver = new boost::interprocess::shared_memory_object(
@@ -39,17 +43,22 @@ FlightController::~FlightController() {
 }
 
 void FlightController::run() {
-	TransitionEvent currentRxEvent = TransitionEvent::rxNeutral;
+	char currentRxEvent = 'S';
 
 	// Start driver loop
+	char charNewRxEvent;
 	while(true) {
-		TransitionEvent newRxEvent = _charToEvent(_parseEventCharFromRxSharedMemory());
-		if(currentRxEvent != newRxEvent) {
+		charNewRxEvent = _parseEventCharFromRxSharedMemory();
+		TransitionEvent newRxEvent = _charToEvent(charNewRxEvent);
+		if(lastEvent != newRxEvent) {
 			// change in shared memory; check for valid next state
 			_updateState(newRxEvent);
-		} else {
-			_iterateCurrentState();
 		}
+
+		if(currentState == TransitionState::flight || currentState == TransitionState::fstart){
+			_updatePidController(charNewRxEvent);
+		}
+		_iterateCurrentState();
 	}// end run()
 }
 
@@ -134,7 +143,7 @@ void FlightController::_iterateCurrentState() {
 			{
 				std::cout << "==== INIT ====" << std::endl;
 				pilotMemStream = "S";
-				Properties* pidConfigProperties = new Properties("~/runtime/FlightController/flightController.properties");
+				Properties* pidConfigProperties = new Properties("/home/root/runtime/FlightController/flightController.properties");
 				PidConfig* pidConfig = new PidConfig(pidConfigProperties);
 				pidController = new PidController(pidConfig);
 				pidController->setup();
@@ -173,4 +182,25 @@ void FlightController::_iterateCurrentState() {
 	}
 }
 
-
+void FlightController::_updatePidController(char rxEvent) {
+	switch(rxEvent) {
+		case 'B':
+			pidController->setPitchDPS(10);
+			break;
+		case 'F':
+			pidController->setPitchDPS(-10);
+			break;
+		case 'L':
+			pidController->setRollDPS(10);
+			break;
+		case 'R':
+			pidController->setRollDPS(-10);
+			break;
+		case 'U':
+			pidController->incrementBaselineThrottle(1);
+			break;
+		case 'D':
+			pidController->incrementBaselineThrottle(-1);
+			break;
+	}
+}

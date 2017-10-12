@@ -36,6 +36,12 @@ public:
 	void calculatePidController();
 	void loop(bool rotorsEnabled);
 	void iterativeLoop(bool rotorsEnabled);
+	//void setPidControllerSetpoint(double* setpointArray);
+
+	void incrementBaselineThrottle(int value);
+	void setRollDPS(int dps);
+	void setPitchDPS(int dps);
+	void setYawDPS(int dps);
 
 	void _TEST_ROTORS();
 	void _STOP();

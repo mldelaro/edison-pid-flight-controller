@@ -47,7 +47,8 @@ private:
 	Properties* flightControllerProperties;
 	volatile int* channels[4];
 	std::string pilotMemStream;
-
+	double runningSetPoints[3];
+	double runningBaselineThrottle;
 	PidController* pidController;
 
 	char _parseEventCharFromRxSharedMemory();
@@ -55,6 +56,7 @@ private:
 	int _eventToIndex(TransitionEvent event);
 	void _updateState(TransitionEvent rxEvent);
 	void _iterateCurrentState();
+	void _updatePidController(char rxEvent);
 
 
 

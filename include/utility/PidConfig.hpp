@@ -14,6 +14,7 @@ public:
 	double* getMaxPidOutput();
 	int getMaxReceiverOutput();
 	int getMaxThrottle();
+	int getHoveringBaselineThrottle();
 	int getCorrectionFrequencyHz();
 	bool isCsvPidOutputEnabled();
 	bool isCsvRawGyroOutputEnabled();
@@ -26,6 +27,7 @@ private:
 	double PIDMaxOutput[3];
 	int maxReceiverOutput;
 	int maxThrottle;
+	int hoveringBaselineThrottle;
 	int correctionFrequencyHz;
 	bool csvPidOutputEnabled;
 	bool csvRawGyroOutputEnabled;

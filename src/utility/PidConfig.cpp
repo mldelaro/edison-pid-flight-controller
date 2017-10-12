@@ -20,6 +20,7 @@ PidConfig::PidConfig() {
 
 	maxReceiverOutput = fc_constants::MAX_RECEIVER_THROTTLE;
 	maxThrottle = 2300;
+	hoveringBaselineThrottle = 1700;
 	correctionFrequencyHz = fc_constants::CORRECTION_FREQUENCY_HZ;
 
 	csvPidOutputEnabled = false;
@@ -47,6 +48,7 @@ PidConfig::PidConfig(Properties* propertiesFile) {
 
 	maxReceiverOutput = fc_constants::MAX_RECEIVER_THROTTLE;
 	maxThrottle = 2300;
+	hoveringBaselineThrottle = 1700;
 	correctionFrequencyHz = fc_constants::CORRECTION_FREQUENCY_HZ;
 
 	_getDoubleValue(&PGain[0], "p-gain-roll");
@@ -67,6 +69,7 @@ PidConfig::PidConfig(Properties* propertiesFile) {
 
 	_getIntValue(&maxReceiverOutput, "max-receive-output");
 	_getIntValue(&maxThrottle, "max-throttle");
+	_getIntValue(&hoveringBaselineThrottle, "hovering-baseline-throttle");
 	_getIntValue(&correctionFrequencyHz, "correction-frequency-hz");
 
 	csvPidOutputEnabled = propertyFile->getBoolForKey("enable-pid-output-csv-log");
@@ -87,6 +90,9 @@ double* PidConfig::getMaxPidOutput() {
 }
 int PidConfig::getMaxThrottle() {
 	return maxThrottle;
+}
+int PidConfig::getHoveringBaselineThrottle() {
+	return hoveringBaselineThrottle;
 }
 int PidConfig::getMaxReceiverOutput() {
 	return maxReceiverOutput;

@@ -19,5 +19,5 @@ double fc_constants::PID_DERIVATIVE_GAIN[3] = {0, 0, 0};	// Derivative-Gain for 
 double fc_constants::PID_MAX_OUTPUT[3] = {0, 0, 0};					// limit PID output
 const int fc_constants::GYRO_SAMPLE_COUNT = 2000;							// number of samples to take for callibration
 const float fc_constants::GYRO_1DPS_RAW_OUTPUT = 65.5; 					// from Gyro datasheet (degrees/sec value)
-const int fc_constants::MAX_RECEIVER_THROTTLE = 1748;
+const int fc_constants::MAX_RECEIVER_THROTTLE = 2000;
 const int fc_constants::CORRECTION_FREQUENCY_HZ = 250;
