@@ -156,7 +156,6 @@ PidController::PidController(PidConfig* config) {
 	i2c_slaveDevices[0] = gyro;
 	usleep(100);
 
-	/* isntances interfere with each other?*/
 	PidControlLogger->logStream << "Constructing ESC Controller..." << std::endl;
 	esc_controller = new ESC_Impl_PCA9685(fc_constants::I2C_ADDR_ESC_CONTROLLER, i2c_controller, 4);
 	esc_controller->init();
