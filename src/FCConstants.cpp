@@ -7,6 +7,9 @@ const float fc_constants::RATIO_DEGREE_TO_RADIAN = 0.000001066; //3.142 / 180
 /* HARDWARE CONFIGURATIONS*/
 //const int PIN_LED_WARNING = ArduinoBreakout::GPIO_13;
 const int fc_constants::PIN_BATTERY_VOLTAGE = ArduinoBreakout::ANALOG_0;
+const int fc_constants::PIN_LED_STATUS_RED = ArduinoBreakout::GPIO_11;
+const int fc_constants::PIN_LED_STATUS_GREEN = ArduinoBreakout::GPIO_12;
+const int fc_constants::PIN_LED_STATUS_BLUE = ArduinoBreakout::GPIO_13;
 const int fc_constants::I2C_DEVICE_COUNT = 2;
 const int fc_constants::I2C_ADDR_GYRO = 0x68;
 const int fc_constants::I2C_ADDR_ESC_CONTROLLER = 0x40;

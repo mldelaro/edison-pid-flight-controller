@@ -22,8 +22,11 @@
 #include "./hardware/I2C_Slave_Device.hpp"
 #include "./hardware/interface/Gyro_Interface.hpp"
 #include "./hardware/interface/ESC_Controller_Interface.hpp"
+#include "./hardware/interface/LED_RGB_Interface.hpp"
 #include "./hardware/implementation/Gyro_Impl_MPU6050.hpp"
 #include "./hardware/implementation/ESC_Impl_PCA9685.hpp"
+#include "./hardware/implementation/LED_Impl.hpp"
+
 
 #include "FCConstants.hpp"
 
@@ -61,6 +64,7 @@ private:
 
 	Gyro_Interface* gyro;
 	ESC_Controller_Interface* esc_controller;
+	LED_RGB_Interface* status_led;
 
 	PidConfig* pidConfigs;
 

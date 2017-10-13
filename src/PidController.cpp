@@ -76,6 +76,15 @@ PidController::~PidController() {
 
 PidController::PidController(PidConfig* config) {
 
+
+
+	status_led = new LED_RGB_Interface(
+					new LED_Impl(fc_constants::PIN_LED_STATUS_RED),
+					new LED_Impl(fc_constants::PIN_LED_STATUS_GREEN),
+					new LED_Impl(fc_constants::PIN_LED_STATUS_BLUE)
+	);
+	status_led->setRGB(false, true, false);
+
 	if(config == NULL) {
 		std::cout << "Running on default PID Configurations..." << std::endl;
 		pidConfigs = new PidConfig();
@@ -132,6 +141,8 @@ PidController::PidController(PidConfig* config) {
 	PidControlLogger->logStream << "Initializing PID Flight Controller..." << std::endl;
 	PidControlLogger->logStream << "Initializing Analog and GPIO pins..." << std::endl;
 
+	status_led->setRGB(false, true, false);
+
 	batteryVoltageAnalogInput = new mraa::Aio(fc_constants::PIN_BATTERY_VOLTAGE);
 	if(batteryVoltageAnalogInput == NULL) {
 		PidErrorLogger->logStream << "WARNING: Cannot initialize analog input";
@@ -144,6 +155,7 @@ PidController::PidController(PidConfig* config) {
 	if(setI2cFreqReturnCode != mraa::Result::SUCCESS) {
 		PidControlLogger->logStream << "Failed to initialize I2C Bus in Fast mode..." << std::endl;
 		std::cout << "Failed to initialize I2C Bus in Fast mode..." << std::endl;
+		status_led->setRGB(true, false, false);
 	} else {
 		std::cout << "Initialized I2C in Fast mode" << std::endl;
 	}
@@ -173,6 +185,7 @@ PidController::PidController(PidConfig* config) {
 	PidControlLogger->logStream << "- Degrees traveled per sample [.00006] = " << degreeTraveledPerSample << std::endl;
 	loopTimeout = (1.0 / pidConfigs->getCorrectionFrequencyHz()) * 1000000;
 	PidControlLogger->logStream << "- Loop Timeout [useconds] = " << loopTimeout << std::endl;
+	status_led->setRGB(false, true, true);
 }
 
 void PidController::_TEST_ROTORS() {
@@ -196,21 +209,25 @@ void PidController::_TEST_ROTORS() {
 		esc_controller->setPwmCycle(i, 0, 1100);
 		std::cout << "STARTUP_" << i << "..."<< std::endl;
 		esc_controller->setPwmCycle(i, 0, 1100);
+		status_led->setRGB(false, true, false);
 		sleep(1);
 
 		esc_controller->setPwmCycle(i, 0, 1300);
 		std::cout << "LOW_THROTTLE_" << i << "..."<< std::endl;
 		esc_controller->setPwmCycle(i, 0, 1300);
+		status_led->setRGB(false, false, true);
 		sleep(2);
 
 		esc_controller->setPwmCycle(i, 0, 1000);
 		std::cout << "STOP_" << i << "..."<< std::endl;
 		esc_controller->setPwmCycle(i, 0, 1000);
+		status_led->setRGB(false, true, true);
 		sleep(1);
 	}
 }
 
 void PidController::_STOP() {
+	status_led->setRGB(false, true, true);
 	esc_controller->setPwmCycle(0, 0, 800);
 	esc_controller->setPwmCycle(1, 0, 800);
 	esc_controller->setPwmCycle(2, 0, 800);
@@ -218,6 +235,7 @@ void PidController::_STOP() {
 }
 
 void PidController::setup() {
+	status_led->setRGB(false, true, false);
 	PidControlLogger->logStream << "ENTER SETUP" << std::endl;
 
 	currentStatus = SETUP;
@@ -239,8 +257,14 @@ void PidController::setup() {
 		gyro_sensorOffset[PITCH] += gyro->getGyro_pitch();
 		gyro_sensorOffset[YAW] += gyro->getGyro_yaw();
 
+		if(currentSampleIndex % 200 < 100) {
+			status_led->setRGB(false, true, false);
+		} else {
+			status_led->setRGB(false, true, true);
+		}
 		usleep(15);
 	}
+	status_led->setRGB(false, true, false);
 
 	gyro_sensorOffset[ROLL] /= fc_constants::GYRO_SAMPLE_COUNT;
 	gyro_sensorOffset[PITCH] /= fc_constants::GYRO_SAMPLE_COUNT;
@@ -250,9 +274,11 @@ void PidController::setup() {
 	currentStatus = START_MOTORS;
 
 	PidControlLogger->logStream << "EXIT SETUP " << std::endl;
+	status_led->setRGB(false, true, true);
 }
 
 void PidController::iterativeLoop(bool rotorsEnabled) {
+	status_led->setRGB(false, false, true);
 	loop(rotorsEnabled);
 }
 
@@ -432,9 +458,9 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "AccPitch: " << accAngleMeasuredFromNormalG[PITCH] << std::endl;
 //			std::cout << "AccRoll: " << accAngleMeasuredFromNormalG[ROLL] << std::endl;
 
-//			std::cout << "Roll Gyro Output: " << gyro_sensorNormalized[ROLL] << std::endl;
-//			std::cout << "Pitch Gyro Ouptut: " << gyro_sensorNormalized[PITCH] << std::endl;
-			std::cout << "Yaw Gyro Ouptut: " << gyro_sensorNormalized[YAW] << std::endl;
+			std::cout << "Roll Gyro Output: " << gyro->getGyro_roll() << std::endl;
+			std::cout << "Pitch Gyro Ouptut: " << gyro->getGyro_pitch() << std::endl;
+			std::cout << "Yaw Gyro Ouptut: " << gyro->getGyro_yaw() << std::endl;
 
 		}
 
@@ -541,21 +567,25 @@ void* PidController::p_loop() {
 
 			if(strncmp(rx_host.c_str(), "T", 1) == 0) {
 				std::cout << "Entering testing mode...\n";
+				status_led->setRGB(false, false, true);
 				flightController->_TEST_ROTORS();
 				didStartFlight = false;
 			} else if(strncmp(rx_host.c_str(), "V", 1) == 0) {
 				std::cout << "STARTING FLIGHT CONTROLLER...\n";
+				status_led->setRGB(false, false, true);
 				flightController->iterativeLoop(true);
 				enabledRotors = true;
 				didStartFlight = true;
 			} else if(strncmp(rx_host.c_str(), "Y", 1) == 0) {
 				std::cout << "[FALSE]STARTING FLIGHT CONTROLLER...\n";
+				status_led->setRGB(false, false, true);
 				flightController->_STOP();
 				flightController->iterativeLoop(false);
 				enabledRotors = false;
 				didStartFlight = true;
 			} else if(strncmp(rx_host.c_str(), "W", 1) == 0) {
 				std::cout << "STOPPING FLIGHT CONTROLLER...\n";
+				status_led->setRGB(false, true, true);
 				flightController->_STOP();
 				didStartFlight = false;
 				enabledRotors = false;

@@ -14,6 +14,9 @@ namespace fc_constants {
 
 	/* HARDWARE CONFIGURATIONS*/
 	extern const int PIN_BATTERY_VOLTAGE;
+	extern const int PIN_LED_STATUS_RED;
+	extern const int PIN_LED_STATUS_GREEN;
+	extern const int PIN_LED_STATUS_BLUE;
 	extern const int I2C_DEVICE_COUNT;
 	extern const int I2C_ADDR_GYRO;
 	extern const int I2C_ADDR_ESC_CONTROLLER;

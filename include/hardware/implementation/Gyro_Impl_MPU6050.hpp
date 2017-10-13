@@ -50,7 +50,7 @@ public:
 		gyro_x = rx_tx_buf[8]<<8|rx_tx_buf[9];
 		gyro_y = rx_tx_buf[10]<<8|rx_tx_buf[11];
 		gyro_z = rx_tx_buf[12]<<8|rx_tx_buf[13];
-		gyro_z *= -1;
+		gyro_x *= -1;
 	}
 
 	void init() {
