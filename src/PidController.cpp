@@ -250,20 +250,8 @@ void PidController::setup() {
 	PidControlLogger->logStream << "Callibrating Gyro Device..." << std::endl;
 	currentStatus = GYRO_CALLIBRATION;
 
-	for(int currentSampleIndex = 0; currentSampleIndex < fc_constants::GYRO_SAMPLE_COUNT; currentSampleIndex++) {
-		gyro->read();
+	gyro->callibrateGyro(fc_constants::GYRO_SAMPLE_COUNT);
 
-		gyro_sensorOffset[ROLL] += gyro->getGyro_roll();
-		gyro_sensorOffset[PITCH] += gyro->getGyro_pitch();
-		gyro_sensorOffset[YAW] += gyro->getGyro_yaw();
-
-		if(currentSampleIndex % 200 < 100) {
-			status_led->setRGB(false, true, false);
-		} else {
-			status_led->setRGB(false, true, true);
-		}
-		usleep(15);
-	}
 	status_led->setRGB(false, true, false);
 
 	gyro_sensorOffset[ROLL] /= fc_constants::GYRO_SAMPLE_COUNT;
@@ -287,11 +275,9 @@ void PidController::loop(bool rotorsEnabled) {
 
 	/* BASIC IMU Calculations */
 	// Normalize gyro raw data to calibration
-	gyro_sensorNormalized[ROLL] = gyro->getGyro_roll() - gyro_sensorOffset[ROLL];
-	gyro_sensorNormalized[PITCH] = gyro->getGyro_pitch() - gyro_sensorOffset[PITCH];
-	gyro_sensorNormalized[YAW] = gyro->getGyro_yaw() - gyro_sensorOffset[YAW];
-
-	gyro_sensorNormalized[YAW] *= -1; // rotate yaw to match conventions
+	gyro_sensorNormalized[ROLL] = gyro->getRoll_DPS();
+	gyro_sensorNormalized[PITCH] = gyro->getPitch_DPS();
+	gyro_sensorNormalized[YAW] = gyro->getYaw_DPS();
 
 	gyro_sensorPidInput[ROLL] = (gyro_sensorPidInput[ROLL] * 0.7) + ((gyro_sensorNormalized[ROLL] / fc_constants::GYRO_1DPS_RAW_OUTPUT) * 0.3);
 	gyro_sensorPidInput[PITCH] = (gyro_sensorPidInput[PITCH] * 0.7) + ((gyro_sensorNormalized[PITCH] / fc_constants::GYRO_1DPS_RAW_OUTPUT) * 0.3);
@@ -309,18 +295,18 @@ void PidController::loop(bool rotorsEnabled) {
 
 	/* Accelerometer angle calculations*/
 	accVector = sqrt(
-						(gyro->getAcc_x()*gyro->getAcc_x()) +
-						(gyro->getAcc_y()*gyro->getAcc_y()) +
-						(gyro->getAcc_z()*gyro->getAcc_z())
+						(gyro->getAccX_G() * gyro->getAccX_G()) +
+						(gyro->getAccY_G() * gyro->getAccY_G()) +
+						(gyro->getAccZ_G() * gyro->getAccZ_G())
 					);
 
 	// Declare pitch and roll angle w.r.t gravitational pull
-	if(abs(gyro->getAcc_x()) < accVector) {
-		accAngleMeasuredFromNormalG[ROLL] = asin((double)gyro->getAcc_x()/accVector) * -fc_constants::RATIO_RADIAN_TO_DEGREE;
+	if(abs(gyro->getAccX_G()) < accVector) {
+		accAngleMeasuredFromNormalG[ROLL] = asin((double)gyro->getAccX_G()/accVector) * -fc_constants::RATIO_RADIAN_TO_DEGREE;
 	}
 
-	if(abs(gyro->getAcc_y()) < accVector) {
-		accAngleMeasuredFromNormalG[PITCH] = asin((double)gyro->getAcc_y()/accVector) * fc_constants::RATIO_RADIAN_TO_DEGREE;
+	if(abs(gyro->getAccY_G()) < accVector) {
+		accAngleMeasuredFromNormalG[PITCH] = asin((double)gyro->getAccY_G()/accVector) * fc_constants::RATIO_RADIAN_TO_DEGREE;
 	}
 
 	// Trim Acc calibration
@@ -435,9 +421,9 @@ void PidController::loop(bool rotorsEnabled) {
 
 	if(pidConfigs->isCsvRawGyroOutputEnabled()) {
 		CsvLoggerGyroRawOutput->logStream
-			<< gyro->getAcc_x() << ","
-			<< gyro->getAcc_y() << ","
-			<< gyro->getAcc_z() << ","
+			<< gyro->getAccX_G() << ","
+			<< gyro->getAccY_G() << ","
+			<< gyro->getAccZ_G() << ","
 			<< gyro_sensorNormalized[ROLL] << ","
 			<< gyro_sensorNormalized[PITCH] << ","
 			<< gyro_sensorNormalized[YAW] << std::endl;
@@ -458,10 +444,9 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "AccPitch: " << accAngleMeasuredFromNormalG[PITCH] << std::endl;
 //			std::cout << "AccRoll: " << accAngleMeasuredFromNormalG[ROLL] << std::endl;
 
-			std::cout << "Roll Gyro Output: " << gyro->getGyro_roll() << std::endl;
-			std::cout << "Pitch Gyro Ouptut: " << gyro->getGyro_pitch() << std::endl;
-			std::cout << "Yaw Gyro Ouptut: " << gyro->getGyro_yaw() << std::endl;
-
+//			std::cout << "Roll Gyro Output: " << gyro->getRoll_DPS() << std::endl;
+			std::cout << "Pitch Gyro Ouptut: " << gyro->getPitch_DPS() << std::endl;
+			std::cout << "Yaw Gyro Ouptut: " << gyro->getYaw_DPS() << std::endl;
 		}
 
 //			std::cout << "Roll RunningError: " << pidRunningError[ROLL] << std::endl;
@@ -504,9 +489,6 @@ void PidController::incrementBaselineThrottle(int value) {
 			pidRunningBaselineThrottle = 1999;
 		}
 	}
-
-
-
 }
 
 void PidController::setRollDPS(int dps) {

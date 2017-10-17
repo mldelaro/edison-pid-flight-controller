@@ -11,45 +11,43 @@ class Gyro_Interface : public I2C_Slave_Device
 		Gyro_Interface(int i2c_address, mraa::I2c* i2c_controller) : I2C_Slave_Device(i2c_address, i2c_controller) {
 		}
 
-		virtual void read() {
-			throw methodNotImplementedException;
-		}
 		virtual ~Gyro_Interface() {
 		}
 
-		virtual int16_t getAcc_x() {
+		virtual void callibrateGyro(int sampleCount) {
 			throw methodNotImplementedException;
-			return -1;
 		}
-		virtual int16_t getAcc_y() {
+
+		virtual void read() {
 			throw methodNotImplementedException;
-			return -1;
 		}
-		virtual int16_t getAcc_z() {
+
+		virtual double getRoll_DPS () {
 			throw methodNotImplementedException;
 			return -1;
 		}
 
-		virtual int16_t getGyro_roll() {
-			throw methodNotImplementedException;
-			return -1;
-		}
-		virtual int16_t getGyro_pitch() {
-			throw methodNotImplementedException;
-			return -1;
-		}
-		virtual int16_t getGyro_yaw() {
+		virtual double getPitch_DPS () {
 			throw methodNotImplementedException;
 			return -1;
 		}
 
-		virtual int16_t getTemp() {
+		virtual double getYaw_DPS () {
 			throw methodNotImplementedException;
 			return -1;
 		}
 
+		virtual double getAccX_G () {
+			throw methodNotImplementedException;
+			return -1;
+		}
 
-		virtual float getOutputForOneDegreePerSecond() {
+		virtual double getAccY_G () {
+			throw methodNotImplementedException;
+			return -1;
+		}
+
+		virtual double getAccZ_G () {
 			throw methodNotImplementedException;
 			return -1;
 		}
