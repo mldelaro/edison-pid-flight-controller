@@ -6,7 +6,7 @@ double gyro_sensorOffset[3];		// gyro callibration
 double gyro_sensorNormalized[3];	// callibrated gyro sensor input
 double gyro_sensorPidInput[3];		// error rate detection from gyro as input to PID
 
-double degreeTraveledPerSample;		// ratio for converting sensor input to degrees traveled within a set loop frequency
+double secondsPerSample;		// ratio for converting sensor input to degrees traveled within a set loop frequency
 float currentAngle[2];
 float angleTraveled[2];				// traveled degrees
 
@@ -50,10 +50,10 @@ std::string rx_tcp_server; // string read from tcp server's shared memory
 
 PidController::~PidController() {
 
-	esc_controller->setPwmCycle(0, 0, 1000);
-	esc_controller->setPwmCycle(1, 0, 1000);
-	esc_controller->setPwmCycle(2, 0, 1000);
-	esc_controller->setPwmCycle(3, 0, 1000);
+	esc_controller->setPwmCycle(0, 0, 800);
+	esc_controller->setPwmCycle(1, 0, 800);
+	esc_controller->setPwmCycle(2, 0, 800);
+	esc_controller->setPwmCycle(3, 0, 800);
 
 	batteryVoltageAnalogInput->~Aio();
 	batteryVoltageAnalogInput = NULL;
@@ -90,6 +90,9 @@ PidController::PidController(PidConfig* config) {
 		pidConfigs = config;
 	}
 
+	PidControlLogger = new FCLogger("/home/root/logging/pid-controller/", "PidControllerLog", ".txt");
+	PidErrorLogger = new FCLogger("/home/root/logging/pid-controller/", "PidErrorLog", ".txt");
+
 	if(pidConfigs->isCsvRawGyroOutputEnabled()) {
 		const char* sensorCsvColumnLabels[6];
 		sensorCsvColumnLabels[0] = "accelerometer_x";
@@ -102,8 +105,12 @@ PidController::PidController(PidConfig* config) {
 		CsvLoggerGyroRawOutput = new FCLogger("/home/root/logging/csv-stats/", "RAW_Gyro", ".csv");
 		CsvLoggerGyroRawOutput->startCsvLog(6, sensorCsvColumnLabels);
 		std::cout << "[ENABLED] Raw Gyro CSV data log..." << std::endl;
+		PidControlLogger->logStream << "[ENABLED] Raw Gyro CSV data log..." << std::endl;
+
+
 	} else {
 		std::cout << "[DISABLED] Raw Gyro CSV data log..." << std::endl;
+		PidControlLogger->logStream << "[ENABLED] Raw Gyro CSV data log..." << std::endl;
 	}
 
 	if(pidConfigs->isCsvPidOutputEnabled()) {
@@ -122,12 +129,11 @@ PidController::PidController(PidConfig* config) {
 		CsvLoggerPidOutput = new FCLogger("/home/root/logging/csv-stats/", "PID_Output", ".csv");
 		CsvLoggerPidOutput->startCsvLog(9, gyroCsvColumnLabels);
 		std::cout << "[ENABLED] PID output CSV data log..." << std::endl;
+		PidControlLogger->logStream << "[ENABLED] PID output CSV data log..." << std::endl;
 	} else {
 		std::cout << "[DISABLED] PID output CSV data log..." << std::endl;
+		PidControlLogger->logStream << "[DISABLED] PID output CSV data log..." << std::endl;
 	}
-
-	PidControlLogger = new FCLogger("/home/root/logging/pid-controller/", "PidControllerLog", ".txt");
-	PidErrorLogger = new FCLogger("/home/root/logging/pid-controller/", "PidErrorLog", ".txt");
 
 	mraa::init();
 
@@ -152,38 +158,58 @@ PidController::PidController(PidConfig* config) {
 
 	mraa::Result setI2cFreqReturnCode = i2c_controller->frequency(mraa::I2cMode::I2C_FAST); // operate in standard 100kHz mode
 	if(setI2cFreqReturnCode != mraa::Result::SUCCESS) {
-		PidControlLogger->logStream << "Failed to initialize I2C Bus in Fast mode..." << std::endl;
-		std::cout << "Failed to initialize I2C Bus in Fast mode..." << std::endl;
+		PidControlLogger->logStream << "[FAIL] Failed to initialize I2C Bus in Fast mode..." << std::endl;
+		std::cout << "[FAIL] Failed to initialize I2C Bus in Fast mode..." << std::endl;
 		status_led->setRGB(true, false, false);
 	} else {
-		std::cout << "Initialized I2C in Fast mode..." << std::endl;
+		PidControlLogger->logStream << "[DONE] Initialized I2C in Fast mode...." << std::endl;
+		std::cout << "[DONE] Initialized I2C in Fast mode..." << std::endl;
 	}
 
+	PidControlLogger->logStream << "Initializing I2C Slave Device...." << std::endl;
+	std::cout << "Initializing I2C Slave Device..." << std::endl;
 	i2c_slaveDevices = new I2C_Slave_Device*[fc_constants::I2C_DEVICE_COUNT];
 
+
 	PidControlLogger->logStream << "Constructing Gyro..." << std::endl;
+	std::cout << "Constructing Gyro..." << std::endl;
+	PidControlLogger->logStream << "Initializing Gyro I2C Device...." << std::endl;
+	std::cout << "Initializing Gyro I2C Device..." << std::endl;
 	gyro = new Gyro_Impl_MPU6050(fc_constants::I2C_ADDR_GYRO, i2c_controller);
 	gyro->init();
 	i2c_slaveDevices[0] = gyro;
 	usleep(100);
+	PidControlLogger->logStream << "[DONE] Initialized Gyro I2C Device...." << std::endl;
+	std::cout << "[DONE] Initialized Gyro I2C Device..." << std::endl;
 
 	PidControlLogger->logStream << "Constructing ESC Controller..." << std::endl;
+	PidControlLogger->logStream << "Initializing ESC Controller I2C Device...." << std::endl;
+	std::cout << "Initializing ESC Controller I2C Device..." << std::endl;
 	esc_controller = new ESC_Impl_PCA9685(fc_constants::I2C_ADDR_ESC_CONTROLLER, i2c_controller, 4);
 	esc_controller->init();
 	i2c_slaveDevices[1] = esc_controller;
 	usleep(100);
 
 	esc_controller->setPwmFrequency(300);
-	esc_controller->setPwmCycle(0, 0, 1000);
-	esc_controller->setPwmCycle(1, 0, 1000);
-	esc_controller->setPwmCycle(2, 0, 1000);
-	esc_controller->setPwmCycle(3, 0, 1000);
+	esc_controller->setPwmCycle(0, 0, 800);
+	esc_controller->setPwmCycle(1, 0, 800);
+	esc_controller->setPwmCycle(2, 0, 800);
+	esc_controller->setPwmCycle(3, 0, 800);
+
+	PidControlLogger->logStream << "[DONE] Initialized ESC Controller I2C Device...." << std::endl;
+	std::cout << "[DONE] Initialized ESC Controller I2C Device..." << std::endl;
 
 	PidControlLogger->logStream << "Initializing runtime variables..." << std::endl;
-	degreeTraveledPerSample = (double)((1.0) / (pidConfigs->getCorrectionFrequencyHz()));
-	PidControlLogger->logStream << "[Sample Time - uSeconds] = " << degreeTraveledPerSample << std::endl;
-	loopTimeout = (1.0 / pidConfigs->getCorrectionFrequencyHz()) * 1000000;
-	PidControlLogger->logStream << "[Loop Timeout - useconds] = " << loopTimeout << std::endl;
+	std::cout << "Initializing runtime variables..." << std::endl;
+
+	secondsPerSample = (double)((1.0) / (pidConfigs->getCorrectionFrequencyHz()));
+	PidControlLogger->logStream << "[Done] Sample Time - uSeconds = " << secondsPerSample * 1000000 << std::endl;
+	std::cout << "[Done] Sample Time - uSeconds = " << secondsPerSample * 1000000 << std::endl;
+
+	loopTimeout = secondsPerSample * 1000000;
+	PidControlLogger->logStream << "[Done] Loop Timeout - uSeconds = " << loopTimeout << std::endl;
+	std::cout << "[Done] Loop Timeout - uSeconds = " << loopTimeout << std::endl;
+
 	status_led->setRGB(false, true, true);
 }
 
@@ -194,13 +220,13 @@ void PidController::setup() {
 	currentStatus = SETUP;
 	loopCounter = 0;
 
-	// keep hover status... set all setpoints to 0
+	// keep hover status... set all set-points to 0
 	pidSetPoint[ROLL] = 0;
 	pidSetPoint[PITCH] = 0;
 	pidSetPoint[YAW] = 0;
 
 	// Normalize gyro and accelerometer readings
-	PidControlLogger->logStream << "Callibrating Gyro Device..." << std::endl;
+	PidControlLogger->logStream << "Calibrating Gyro Device..." << std::endl;
 	currentStatus = GYRO_CALLIBRATION;
 
 	gyro->callibrateGyro(fc_constants::GYRO_SAMPLE_COUNT);
@@ -219,7 +245,6 @@ void PidController::setup() {
 }
 
 void PidController::iterativeLoop(bool rotorsEnabled) {
-	status_led->setRGB(false, false, true);
 	loop(rotorsEnabled);
 }
 
@@ -240,8 +265,8 @@ void PidController::loop(bool rotorsEnabled) {
 	// Calculate Angle Traveled
 	//degreeTraveledPerSample = (double)((double)(1.0) / (double)fc_constants::CORRECTION_FREQUENCY_HZ / (double)fc_constants::GYRO_1DPS_RAW_OUTPUT);
 	//degreeTraveledPerSample *= (double)((double)(loopRunningTime / 10) * (double)(1.0 / fc_constants::CORRECTION_FREQUENCY_HZ));
-	angleTraveled[PITCH] += gyro_sensorNormalized[PITCH] * degreeTraveledPerSample;
-	angleTraveled[ROLL] += gyro_sensorNormalized[ROLL] * degreeTraveledPerSample;
+	angleTraveled[PITCH] += gyro_sensorNormalized[PITCH] * secondsPerSample;
+	angleTraveled[ROLL] += gyro_sensorNormalized[ROLL] * secondsPerSample;
 
 	// Translate changes in yaw to traveled angles in pitch and roll
 	angleTraveled[PITCH] += angleTraveled[ROLL] * sin(gyro_sensorNormalized[YAW] * fc_constants::RATIO_DEGREE_TO_RADIAN);
@@ -507,14 +532,15 @@ void* PidController::p_loop() {
 				didStartFlight = false;
 			} else if(strncmp(rx_host.c_str(), "V", 1) == 0) {
 				std::cout << "STARTING FLIGHT CONTROLLER...\n";
+				flightController->_STOP();
 				status_led->setRGB(false, false, true);
 				flightController->iterativeLoop(true);
 				enabledRotors = true;
 				didStartFlight = true;
 			} else if(strncmp(rx_host.c_str(), "Y", 1) == 0) {
 				std::cout << "[FALSE]STARTING FLIGHT CONTROLLER...\n";
-				status_led->setRGB(false, false, true);
 				flightController->_STOP();
+				status_led->setRGB(false, false, true);
 				flightController->iterativeLoop(false);
 				enabledRotors = false;
 				didStartFlight = true;
@@ -607,9 +633,9 @@ void PidController::_TEST_ROTORS() {
 		status_led->setRGB(false, true, false);
 		sleep(1);
 
-		esc_controller->setPwmCycle(i, 0, 1300);
+		esc_controller->setPwmCycle(i, 0, 1500);
 		std::cout << "LOW_THROTTLE_" << i << "..."<< std::endl;
-		esc_controller->setPwmCycle(i, 0, 1300);
+		esc_controller->setPwmCycle(i, 0, 1500);
 		status_led->setRGB(false, false, true);
 		sleep(2);
 

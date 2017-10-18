@@ -102,6 +102,7 @@ public:
 			// Read from Register 0x1B
 			if(readByteValueFromAddress(MPU6050_REG_ACCEL_CONFIG) != MPU6050_FS_SEL_1) {
 				std::cout << "Failed to initialize GYRO_MPU6050" << std::endl;
+				std::cout << "Resetting..." << std::endl;
 			} else {
 				didSucceed = true;
 			}

@@ -6,98 +6,40 @@
 #include "./../interface/ESC_Controller_Interface.hpp"
 #include "./../I2C_Slave_Device.hpp"
 
-#define PCA9685_TX_RX_BUFFER_LENGTH 50
-#define PCA9685_I2C_ADDRESS 0x40
-#define PCA9685_RESOLUTION 4096
-#define PCA9685_CLOCK_HZ 25000000
+const int PCA9685_TX_RX_BUFFER_LENGTH = 50;
+const int PCA9685_I2C_ADDRESS = 0x40;
+const int PCA9685_RESOLUTION = 4096;
+const int PCA9685_CLOCK_HZ = 25000000;
 
-#define REG_MODE_1 0x00
-#define REG_MODE_2 0x01
-#define REG_ALL_CALL_ADR 0x05
-#define REG_LED_0_ON_L 0x06
-#define REG_LED_0_ON_H 0x07
-#define REG_LED_ALL_ON_L 0x0FA
-#define REG_LED_ALL_OFF_L 0xFC
-#define REG_PRESCALE 0xFE
+const int REG_MODE_1 = 0x00;
+const int REG_MODE_2 = 0x01;
+const int REG_ALL_CALL_ADR = 0x05;
+const int REG_LED_0_ON_L = 0x06;
+const int REG_LED_0_ON_H = 0x07;
+const int REG_LED_ALL_ON_L = 0x0FA;
+const int REG_LED_ALL_OFF_L = 0xFC;
+const int REG_PRESCALE = 0xFE;
 
-#define ENABLE_ALL_CALL 0x01
-#define ENABLE_OUTDRV 0x04
-#define ENABLE_INVRT 0x08
-#define ENABLE_RESET 0x80
-#define ENABLE_SLEEP 0x10
+const int ENABLE_ALL_CALL = 0x01;
+const int ENABLE_OUTDRV = 0x04;
+const int ENABLE_INVRT = 0x08;
+const int ENABLE_RESET = 0x80;
+const int ENABLE_SLEEP = 0x10;
 
-#define ESC_PWM_FREQ_HZ 300
+const int ESC_PWM_FREQ_HZ = 300;
+
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
 class ESC_Impl_PCA9685 : public ESC_Controller_Interface {
 private:
 	int* rotorThrottle;
 
 	void _RESTART() {
-
 		std::cout << "PCA9685 - Restarting..." << std::endl;
-		/* Turn off all output channels
-		rx_tx_buf[0] = REG_LED_ALL_ON_L;	// Write 0 to ALL_LED_ON Register
-		rx_tx_buf[1] = 0x00;				// LSB set to 0
-		rx_tx_buf[2] = 0x00;				// MSB set to 0
-		rx_tx_buf[3] = 0x00;				// Write 0 to ALL_LED_OFF - LSB set to 0
-		rx_tx_buf[4] = 0x00;				// MSB set to 0
-		writeBuffer(rx_tx_buf, 5);
 
-		// Set modes of operations:
-		rx_tx_buf[0] = REG_MODE_1;				// Write to Mode 1 Register
-		rx_tx_buf[1] = 0x00 | ENABLE_ALL_CALL;	// enable PCA to respond to All Calls
-		writeBuffer(rx_tx_buf, 2);
-
-		rx_tx_buf[0] = REG_MODE_2;				// Write to Mode 2 Register
-		rx_tx_buf[1] = 0x00 | ENABLE_OUTDRV;	// enable open drain
-		writeBuffer(rx_tx_buf, 2);
-
-		usleep(5150);
-
-		// Restart module
-		uint8_t mode1 = readByteValueFromAddress(REG_MODE_1);
-		rx_tx_buf[0] = REG_MODE_1;						// Write to Mode 1 Register
-		rx_tx_buf[1] = mode1 & ~ENABLE_SLEEP;	// clear SLEEP bit (4th bit)
-		writeBuffer(rx_tx_buf, 2);
-
-		usleep(5150);*/
-
-
-		//v2 - bad restart... works when edison was restarted
 		rx_tx_buf[0] = REG_MODE_1; // restart
 		rx_tx_buf[1] = 0;
 		writeBuffer(rx_tx_buf, 2);
-
-
-		//v3
-		/* based on restart mode in datasheet*
-		while(!didSucceed) {
-			std::cout << "PCA9685 - enter reset";
-			uint8_t mode1 = readByteValueFromAddress(REG_MODE_1);
-			std::cout << "PCA9685 - read";
-			// check that restart is logic 1
-			std::cout << (int)mode1;
-			if((mode1 && ENABLE_RESET) == ENABLE_RESET) {
-				//rx_tx_buf[0] = REG_MODE_1;				// Write to Mode 1 Register
-				//rx_tx_buf[1] = mode1 & ~ENABLE_SLEEP;	// clear SLEEP bit (4th bit)
-				//writeBuffer(rx_tx_buf, 2);
-
-				writeByteToAddress(REG_MODE_1, (mode1 & ~ENABLE_SLEEP));
-				std::cout << "PCA9685 - did reset";
-				didSucceed = true;
-				usleep(515);
-			} else {
-				//rx_tx_buf[0] = REG_MODE_1; // restart
-				//rx_tx_buf[1] = ENABLE_RESET;
-				//writeBuffer(rx_tx_buf, 2);
-				writeByteToAddress(REG_MODE_1, 0);
-				std::cout << "PCA9685 - Failed to clear SLEEP... enabling reset";
-				usleep(510);
-				writeByteToAddress(REG_MODE_1, ENABLE_RESET);
-				usleep(510);
-			}
-		}*/
-
 	}
 
 	void SET_DRIVER_ALL_OFF() {
@@ -183,31 +125,6 @@ public:
 			rx_tx_buf[1] = original_mode1 | 0xA1; //enable auto increment
 			writeBuffer(rx_tx_buf, 2);
 		}
-
-
-		/*
-		rx_tx_buf[1] = mode1;
-		rx_tx_buf[0] = REG_MODE_1;						// Write to Mode 1 Register
-		rx_tx_buf[1] = rx_tx_buf[1] | ENABLE_SLEEP;		// set SLEEP bit (4th bit)
-		rx_tx_buf[1] = rx_tx_buf[1] & ~ENABLE_RESET;	// clear RESTART bit (7th bit)
-		writeBuffer(rx_tx_buf, 2);
-
-		rx_tx_buf[1] = readByteValueFromAddress(REG_MODE_1);
-		rx_tx_buf[0] = REG_PRESCALE;		// Write to PRESCALE Register
-		rx_tx_buf[1] = prescale;			// set prescale value
-		writeBuffer(rx_tx_buf, 2);
-
-		rx_tx_buf[1] = mode1;
-		rx_tx_buf[0] = REG_MODE_1;						// Write to Mode 1 Register
-		writeBuffer(rx_tx_buf, 2);
-
-		usleep(5150);
-
-		rx_tx_buf[1] = readByteValueFromAddress(REG_MODE_1);
-		rx_tx_buf[0] = REG_MODE_1;					// Write to MODE 1 Register
-		rx_tx_buf[1] = mode1 | ENABLE_RESET;	// enable RESET
-		writeBuffer(rx_tx_buf, 2);
-		*/
 	}
 
 	void setThrottlePwmDutyCycle(int rotor, int dutyCycle) {

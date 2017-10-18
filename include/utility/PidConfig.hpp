@@ -51,23 +51,6 @@ private:
 			std::cout << "DEFAULT = " << *val << std::endl;
 		}
 	}
-
-	/*
-	std::string propertyKeys[] = {
-		"p-gain-roll",
-		"p-gain-pitch",
-		"p-gain-yaw",
-		"i-gain-roll",
-		"i-gain-pitch",
-		"i-gain-yaw",
-		"d-gain-roll",
-		"d-gain-pitch",
-		"d-gain-yaw",
-		"max-pid-output",
-		"max-receive-output",
-		"correction-frequency-hz"
-	};
-	*/
 };
 
 #endif //_PID_CONFIG
