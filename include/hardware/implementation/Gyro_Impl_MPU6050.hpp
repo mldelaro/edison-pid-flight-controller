@@ -155,6 +155,7 @@ public:
 		gyro_y = rx_tx_buf[10]<<8|rx_tx_buf[11];
 		gyro_z = rx_tx_buf[12]<<8|rx_tx_buf[13];
 
+		// adjust for device orientation; y and z axis were flipped.
 		gyro_y *= -1;
 		gyro_z *= -1;
 

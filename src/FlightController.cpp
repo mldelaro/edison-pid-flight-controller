@@ -7,7 +7,9 @@ FlightController::FlightController() {
 	runningSetPoints[0] = 0;
 	runningSetPoints[1] = 0;
 	runningSetPoints[2] = 0;
+	runningBaselineThrottle = 0;
 
+	// Don't run until remote is initialized
 	while(!udpRuntimeFound) {
 		try {
 			runtimeUdpReceiver = new boost::interprocess::shared_memory_object(
@@ -43,8 +45,6 @@ FlightController::~FlightController() {
 }
 
 void FlightController::run() {
-	char currentRxEvent = 'S';
-
 	// Start driver loop
 	char charNewRxEvent;
 	while(true) {

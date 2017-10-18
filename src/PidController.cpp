@@ -75,9 +75,6 @@ PidController::~PidController() {
 
 
 PidController::PidController(PidConfig* config) {
-
-
-
 	status_led = new LED_RGB_Interface(
 					new LED_Impl(fc_constants::PIN_LED_STATUS_RED),
 					new LED_Impl(fc_constants::PIN_LED_STATUS_GREEN),
@@ -104,6 +101,7 @@ PidController::PidController(PidConfig* config) {
 
 		CsvLoggerGyroRawOutput = new FCLogger("/home/root/logging/csv-stats/", "RAW_Gyro", ".csv");
 		CsvLoggerGyroRawOutput->startCsvLog(6, sensorCsvColumnLabels);
+		std::cout << "[ENABLED] Raw Gyro CSV data log..." << std::endl;
 	} else {
 		std::cout << "[DISABLED] Raw Gyro CSV data log..." << std::endl;
 	}
@@ -123,6 +121,7 @@ PidController::PidController(PidConfig* config) {
 
 		CsvLoggerPidOutput = new FCLogger("/home/root/logging/csv-stats/", "PID_Output", ".csv");
 		CsvLoggerPidOutput->startCsvLog(9, gyroCsvColumnLabels);
+		std::cout << "[ENABLED] PID output CSV data log..." << std::endl;
 	} else {
 		std::cout << "[DISABLED] PID output CSV data log..." << std::endl;
 	}
@@ -145,7 +144,7 @@ PidController::PidController(PidConfig* config) {
 
 	batteryVoltageAnalogInput = new mraa::Aio(fc_constants::PIN_BATTERY_VOLTAGE);
 	if(batteryVoltageAnalogInput == NULL) {
-		PidErrorLogger->logStream << "WARNING: Cannot initialize analog input";
+		PidErrorLogger->logStream << "[WARNING] Cannot initialize analog input";
 	}
 
 	PidControlLogger->logStream << "Initializing I2C Devices..." << std::endl;
@@ -157,7 +156,7 @@ PidController::PidController(PidConfig* config) {
 		std::cout << "Failed to initialize I2C Bus in Fast mode..." << std::endl;
 		status_led->setRGB(true, false, false);
 	} else {
-		std::cout << "Initialized I2C in Fast mode" << std::endl;
+		std::cout << "Initialized I2C in Fast mode..." << std::endl;
 	}
 
 	i2c_slaveDevices = new I2C_Slave_Device*[fc_constants::I2C_DEVICE_COUNT];
@@ -181,57 +180,11 @@ PidController::PidController(PidConfig* config) {
 	esc_controller->setPwmCycle(3, 0, 1000);
 
 	PidControlLogger->logStream << "Initializing runtime variables..." << std::endl;
-	degreeTraveledPerSample = (double)((1.0) / (pidConfigs->getCorrectionFrequencyHz() * fc_constants::GYRO_1DPS_RAW_OUTPUT));
-	PidControlLogger->logStream << "- Degrees traveled per sample [.00006] = " << degreeTraveledPerSample << std::endl;
+	degreeTraveledPerSample = (double)((1.0) / (pidConfigs->getCorrectionFrequencyHz()));
+	PidControlLogger->logStream << "[Sample Time - uSeconds] = " << degreeTraveledPerSample << std::endl;
 	loopTimeout = (1.0 / pidConfigs->getCorrectionFrequencyHz()) * 1000000;
-	PidControlLogger->logStream << "- Loop Timeout [useconds] = " << loopTimeout << std::endl;
+	PidControlLogger->logStream << "[Loop Timeout - useconds] = " << loopTimeout << std::endl;
 	status_led->setRGB(false, true, true);
-}
-
-void PidController::_TEST_ROTORS() {
-	std::cout << "RUNNING TEST"<< std::endl;
-	//esc_controller->setPwmFrequency(300);
-	sleep(1);
-
-
-	/* Throttle test
-	int i = 1100;
-	while(i < 2300) {
-		esc_controller->setPwmCycle(0, 0, i);
-		std::cout << "STARTUP_" << i << "..."<< std::endl;
-		esc_controller->setPwmCycle(0, 0, i);
-		i += 50;
-		sleep(1);
-	}
-	*/
-
-	for(int i = 0; i < 4; i++) {
-		esc_controller->setPwmCycle(i, 0, 1100);
-		std::cout << "STARTUP_" << i << "..."<< std::endl;
-		esc_controller->setPwmCycle(i, 0, 1100);
-		status_led->setRGB(false, true, false);
-		sleep(1);
-
-		esc_controller->setPwmCycle(i, 0, 1300);
-		std::cout << "LOW_THROTTLE_" << i << "..."<< std::endl;
-		esc_controller->setPwmCycle(i, 0, 1300);
-		status_led->setRGB(false, false, true);
-		sleep(2);
-
-		esc_controller->setPwmCycle(i, 0, 1000);
-		std::cout << "STOP_" << i << "..."<< std::endl;
-		esc_controller->setPwmCycle(i, 0, 1000);
-		status_led->setRGB(false, true, true);
-		sleep(1);
-	}
-}
-
-void PidController::_STOP() {
-	status_led->setRGB(false, true, true);
-	esc_controller->setPwmCycle(0, 0, 800);
-	esc_controller->setPwmCycle(1, 0, 800);
-	esc_controller->setPwmCycle(2, 0, 800);
-	esc_controller->setPwmCycle(3, 0, 800);
 }
 
 void PidController::setup() {
@@ -279,9 +232,10 @@ void PidController::loop(bool rotorsEnabled) {
 	gyro_sensorNormalized[PITCH] = gyro->getPitch_DPS();
 	gyro_sensorNormalized[YAW] = gyro->getYaw_DPS();
 
-	gyro_sensorPidInput[ROLL] = (gyro_sensorPidInput[ROLL] * 0.7) + ((gyro_sensorNormalized[ROLL] / fc_constants::GYRO_1DPS_RAW_OUTPUT) * 0.3);
-	gyro_sensorPidInput[PITCH] = (gyro_sensorPidInput[PITCH] * 0.7) + ((gyro_sensorNormalized[PITCH] / fc_constants::GYRO_1DPS_RAW_OUTPUT) * 0.3);
-	gyro_sensorPidInput[YAW] = (gyro_sensorPidInput[YAW] * 0.7) + ((gyro_sensorNormalized[YAW] / fc_constants::GYRO_1DPS_RAW_OUTPUT) * 0.3);
+	// Use a complimentary filter on gyro data
+	gyro_sensorPidInput[ROLL] = (gyro_sensorPidInput[ROLL] * 0.8) + (gyro_sensorNormalized[ROLL] * 0.2);
+	gyro_sensorPidInput[PITCH] = (gyro_sensorPidInput[PITCH] * 0.8) + (gyro_sensorNormalized[PITCH] * 0.2);
+	gyro_sensorPidInput[YAW] = (gyro_sensorPidInput[YAW] * 0.8) + (gyro_sensorNormalized[YAW] * 0.2);
 
 	// Calculate Angle Traveled
 	//degreeTraveledPerSample = (double)((double)(1.0) / (double)fc_constants::CORRECTION_FREQUENCY_HZ / (double)fc_constants::GYRO_1DPS_RAW_OUTPUT);
@@ -311,7 +265,7 @@ void PidController::loop(bool rotorsEnabled) {
 
 	// Trim Acc calibration
 	//accAngleMeasuredFromNormalG[PITCH] -= 0.7;
-	accAngleMeasuredFromNormalG[ROLL] += 1.1;
+	//accAngleMeasuredFromNormalG[ROLL] += 1.1;
 
 
 	// Drift compensation
@@ -445,8 +399,8 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "AccRoll: " << accAngleMeasuredFromNormalG[ROLL] << std::endl;
 
 //			std::cout << "Roll Gyro Output: " << gyro->getRoll_DPS() << std::endl;
-			std::cout << "Pitch Gyro Ouptut: " << gyro->getPitch_DPS() << std::endl;
-			std::cout << "Yaw Gyro Ouptut: " << gyro->getYaw_DPS() << std::endl;
+//			std::cout << "Pitch Gyro Ouptut: " << gyro->getPitch_DPS() << std::endl;
+//			std::cout << "Yaw Gyro Ouptut: " << gyro->getYaw_DPS() << std::endl;
 		}
 
 //			std::cout << "Roll RunningError: " << pidRunningError[ROLL] << std::endl;
@@ -461,7 +415,6 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "ROTOR 2 Throttle: " << pidRunningThrottle[1] << std::endl;
 //			std::cout << "ROTOR 3 Throttle: " << pidRunningThrottle[2] << std::endl;
 //			std::cout << "ROTOR 4 Throttle: " << pidRunningThrottle[3] << std::endl;
-
 	}
 
 	if(remainingLoopTimeout < 100) {
@@ -640,4 +593,38 @@ void* PidController::p_loop() {
 		}
 	}
 	return NULL;
+}
+
+void PidController::_TEST_ROTORS() {
+	std::cout << "RUNNING TEST"<< std::endl;
+	//esc_controller->setPwmFrequency(300);
+	sleep(1);
+
+	for(int i = 0; i < 4; i++) {
+		esc_controller->setPwmCycle(i, 0, 1100);
+		std::cout << "STARTUP_" << i << "..."<< std::endl;
+		esc_controller->setPwmCycle(i, 0, 1100);
+		status_led->setRGB(false, true, false);
+		sleep(1);
+
+		esc_controller->setPwmCycle(i, 0, 1300);
+		std::cout << "LOW_THROTTLE_" << i << "..."<< std::endl;
+		esc_controller->setPwmCycle(i, 0, 1300);
+		status_led->setRGB(false, false, true);
+		sleep(2);
+
+		esc_controller->setPwmCycle(i, 0, 1000);
+		std::cout << "STOP_" << i << "..."<< std::endl;
+		esc_controller->setPwmCycle(i, 0, 1000);
+		status_led->setRGB(false, true, true);
+		sleep(1);
+	}
+}
+
+void PidController::_STOP() {
+	status_led->setRGB(false, true, true);
+	esc_controller->setPwmCycle(0, 0, 800);
+	esc_controller->setPwmCycle(1, 0, 800);
+	esc_controller->setPwmCycle(2, 0, 800);
+	esc_controller->setPwmCycle(3, 0, 800);
 }
