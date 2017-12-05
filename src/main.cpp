@@ -44,7 +44,6 @@ int main()
 
 	//Start PID Controller
 	std::cout << "Starting PID Controller..." << std::endl;
-	std::cout << "Spawning pthread..." << std::endl;
 
 
 	FlightController* flightController = new FlightController();
@@ -53,6 +52,7 @@ int main()
 	/*start the controller from a thread*
 	pthread_t flightControllerThread;
 	pthread_create(&flightControllerThread, NULL, &PidController::fcLoopHelper, channels);
+	std::cout << "Spawning pthread..." << std::endl;
 	std::string pilotMemStream = "";
 	std::memset(region.get_address(), '\0', region.get_size());
 	while(true) {

@@ -41,10 +41,10 @@ public:
 	void iterativeLoop(bool rotorsEnabled);
 	//void setPidControllerSetpoint(double* setpointArray);
 
-	void incrementBaselineThrottle(int value);
-	void setRollDPS(int dps);
-	void setPitchDPS(int dps);
-	void setYawDPS(int dps);
+	void incrementBaselineThrottle(double value);
+	void setRollDPS(double dps);
+	void setPitchDPS(double dps);
+	void setYawDPS(double dps);
 
 	void _TEST_ROTORS();
 	void _STOP();

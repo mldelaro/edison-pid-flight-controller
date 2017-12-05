@@ -10,7 +10,7 @@ double secondsPerSample;		// ratio for converting sensor input to degrees travel
 float currentAngle[2];
 float angleTraveled[2];				// traveled degrees
 
-float accVector;
+double accVector;
 float accAngleMeasuredFromNormalG[3];
 
 float autoLevelSelfAdjust[2];
@@ -25,6 +25,8 @@ double pidOutput[3];
 
 double pidRunningBaselineThrottle;
 double pidRunningThrottle[4];
+
+double levelAdjust[3];		// angle correction
 
 double remainingLoopTimeout;
 double pidRunningTime;
@@ -250,6 +252,7 @@ void PidController::iterativeLoop(bool rotorsEnabled) {
 
 void PidController::loop(bool rotorsEnabled) {
 	auto loopStartTime = std::chrono::high_resolution_clock::now();
+	gyro->read();
 
 	/* BASIC IMU Calculations */
 	// Normalize gyro raw data to calibration
@@ -269,8 +272,8 @@ void PidController::loop(bool rotorsEnabled) {
 	angleTraveled[ROLL] += gyro_sensorNormalized[ROLL] * secondsPerSample;
 
 	// Translate changes in yaw to traveled angles in pitch and roll
-	angleTraveled[PITCH] += angleTraveled[ROLL] * sin(gyro_sensorNormalized[YAW] * fc_constants::RATIO_DEGREE_TO_RADIAN);
-	angleTraveled[ROLL] -= angleTraveled[PITCH] * sin(gyro_sensorNormalized[YAW] * fc_constants::RATIO_DEGREE_TO_RADIAN);
+	angleTraveled[PITCH] -= angleTraveled[ROLL] * sin(gyro_sensorNormalized[YAW] * fc_constants::RATIO_DEGREE_TO_RADIAN);
+	angleTraveled[ROLL] += angleTraveled[PITCH] * sin(gyro_sensorNormalized[YAW] * fc_constants::RATIO_DEGREE_TO_RADIAN);
 
 	/* Accelerometer angle calculations*/
 	accVector = sqrt(
@@ -288,9 +291,9 @@ void PidController::loop(bool rotorsEnabled) {
 		accAngleMeasuredFromNormalG[PITCH] = asin((double)gyro->getAccY_G()/accVector) * fc_constants::RATIO_RADIAN_TO_DEGREE;
 	}
 
-	// Trim Acc calibration
+	// Trim Acc calibration [TODO]
 	//accAngleMeasuredFromNormalG[PITCH] -= 0.7;
-	//accAngleMeasuredFromNormalG[ROLL] += 1.1;
+	//accAngleMeasuredFromNormalG[ROLL] -= 1.1;
 
 
 	// Drift compensation
@@ -299,15 +302,6 @@ void PidController::loop(bool rotorsEnabled) {
 
 	autoLevelSelfAdjust[PITCH] = angleTraveled[PITCH] * 15;
 	autoLevelSelfAdjust[ROLL] = angleTraveled[ROLL] * 15;
-
-	/* Read from TCP Server's shared memory
-	if(region_tcp_receiver != NULL) {
-		std::stringstream stream;
-		stream.rdbuf()->pubsetbuf((char*)region_tcp_receiver->get_address(), region_tcp_receiver->get_size());
-		rx_tcp_server = stream.str();
-	} else {
-
-	}*/
 
 	/* Start takeoff */
 	if(currentStatus == START_MOTORS) {
@@ -330,7 +324,9 @@ void PidController::loop(bool rotorsEnabled) {
 		currentStatus = RUNNING;
 	}
 
-	gyro->read();
+//	pidSetPoint[ROLL] -= autoLevelSelfAdjust[ROLL];
+//	pidSetPoint[PITCH] -= autoLevelSelfAdjust[ROLL];
+
 	calculatePidController();
 
 	if(currentStatus == RUNNING) {
@@ -338,17 +334,16 @@ void PidController::loop(bool rotorsEnabled) {
 		if(pidRunningBaselineThrottle > pidConfigs->getMaxReceiverOutput()) {
 			pidRunningBaselineThrottle = pidConfigs->getMaxReceiverOutput();
 		}
-
-		// ROTOR 1 - Clockwise 			@ front left
+		// ROTOR 1 - CCW 			@ front left
 		pidRunningThrottle[0] = pidRunningBaselineThrottle - pidOutput[PITCH] - pidOutput[ROLL] + pidOutput[YAW];
 
-		// ROTOR 2 - Counter-Clockwise 	@ front right
+		// ROTOR 2 - CW 	@ front right
 		pidRunningThrottle[1] = pidRunningBaselineThrottle - pidOutput[PITCH] + pidOutput[ROLL] - pidOutput[YAW];
 
-		// ROTOR 3 - Counter-Clockwise 	@ rear left
+		// ROTOR 3 - CW 	@ rear left
 		pidRunningThrottle[2] = pidRunningBaselineThrottle + pidOutput[PITCH] - pidOutput[ROLL] - pidOutput[YAW];
 
-		// ROTOR 4 - Clockwise			@ rear right
+		// ROTOR 4 - CCW			@ rear right
 		pidRunningThrottle[3] = pidRunningBaselineThrottle + pidOutput[PITCH] + pidOutput[ROLL] + pidOutput[YAW];
 
 	} else {
@@ -365,6 +360,8 @@ void PidController::loop(bool rotorsEnabled) {
 		for(int i = 0; i < 4; i++) {
 			if(pidRunningThrottle[i] > pidConfigs->getMaxThrottle()) {
 				pidRunningThrottle[i] = pidConfigs->getMaxThrottle();
+			} else if(pidRunningThrottle[i] < 1100) {
+				pidRunningThrottle[i] = 1100;
 			}
 		}
 
@@ -426,7 +423,10 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "Roll Gyro Output: " << gyro->getRoll_DPS() << std::endl;
 //			std::cout << "Pitch Gyro Ouptut: " << gyro->getPitch_DPS() << std::endl;
 //			std::cout << "Yaw Gyro Ouptut: " << gyro->getYaw_DPS() << std::endl;
-		}
+
+//			std::cout << "Roll PID Setpoint: " << pidSetPoint[ROLL] << std::endl;
+//			std::cout << "Pitch PID Setpoint: " << pidSetPoint[PITCH] << std::endl;
+//			std::cout << "Yaw PID Setpoint: " << pidSetPoint[YAW] << std::endl;
 
 //			std::cout << "Roll RunningError: " << pidRunningError[ROLL] << std::endl;
 //			std::cout << "Pitch RunningError: " << pidRunningError[PITCH] << std::endl;
@@ -436,22 +436,53 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "Pitch PID Ouptut: " << pidOutput[PITCH] << std::endl;
 //			std::cout << "Yaw PID Ouptut: " << pidOutput[YAW] << std::endl;
 
-//			std::cout << "ROTOR 1 Throttle: " << pidRunningThrottle[0] << std::endl;
-//			std::cout << "ROTOR 2 Throttle: " << pidRunningThrottle[1] << std::endl;
-//			std::cout << "ROTOR 3 Throttle: " << pidRunningThrottle[2] << std::endl;
-//			std::cout << "ROTOR 4 Throttle: " << pidRunningThrottle[3] << std::endl;
+			std::cout << "ROTOR 1 Throttle: " << pidRunningThrottle[0] << std::endl;
+			std::cout << "ROTOR 2 Throttle: " << pidRunningThrottle[1] << std::endl;
+			std::cout << "ROTOR 3 Throttle: " << pidRunningThrottle[2] << std::endl;
+			std::cout << "ROTOR 4 Throttle: " << pidRunningThrottle[3] << std::endl;
+
+
+//			pidRunningThrottle[0] = pidRunningBaselineThrottle - pidOutput[PITCH] - pidOutput[ROLL] + pidOutput[YAW];
+
+//			pidRunningError[i] = gyro_sensorPidInput[i] - pidSetPoint[i];
+//					pidIntegralMemory[i] += pidConfigs->getIntegralGain()[i] * pidRunningError[i];
+//					if(pidIntegralMemory[i] > pidConfigs->getMaxPidOutput()[i]) {
+//						pidIntegralMemory[i] = pidConfigs->getMaxPidOutput()[i];
+//					} else if (pidIntegralMemory[i] < (-1 * pidConfigs->getMaxPidOutput()[i])) {
+//						pidIntegralMemory[i] = (-1 * pidConfigs->getMaxPidOutput()[i]);
+//					}
+//			pidOutput[i] = pidConfigs->getProportionalGain()[i] * pidRunningError[i] + pidIntegralMemory[i] +
+//									pidConfigs->getDerivativeGain()[i] * (pidRunningError[i] - pidLastDifferentialError[i]);
+
+//			std::cout << "PID Auto Level: " << autoLevelSelfAdjust[ROLL] << std::endl;
+//			std::cout << "PID Setpoint: " << pidSetPoint[ROLL] << std::endl;
+
+//			std::cout << "PID Running Error: " << pidRunningError[ROLL] << std::endl;
+//			std::cout << "PID Integral Memory: " << pidIntegralMemory[ROLL] << std::endl;
+//			std::cout << "PID Last Differential Error: " << pidLastDifferentialError[ROLL] << std::endl;
+
+//			std::cout << "PID Output: " << pidOutput[ROLL] << std::endl;
+
+//			std::cout << "PID Baseline: " << pidRunningBaselineThrottle << std::endl;
+//			std::cout << "PID Output Pitch: " << pidOutput[PITCH] << std::endl;
+//			std::cout << "PID Output Roll: " << pidOutput[ROLL] << std::endl;
+//			std::cout << "PID Output Yaw: " << pidOutput[YAW] << std::endl;
+
+		}
 	}
 
 	if(remainingLoopTimeout < 100) {
 		PidErrorLogger->logStream << "Running slow by " << remainingLoopTimeout << std::endl;
+		status_led->setRGB(true, false, false);
 	} else {
 		usleep(remainingLoopTimeout - 100);
+		status_led->setRGB(false, false, true);
 	}
 }
 
 
 
-void PidController::incrementBaselineThrottle(int value) {
+void PidController::incrementBaselineThrottle(double value) {
 	if(value < 0) {
 		if(pidRunningBaselineThrottle > 1600) {
 			pidRunningBaselineThrottle = pidRunningBaselineThrottle + value;
@@ -469,18 +500,18 @@ void PidController::incrementBaselineThrottle(int value) {
 	}
 }
 
-void PidController::setRollDPS(int dps) {
+void PidController::setRollDPS(double dps) {
 	pidSetPoint[ROLL] = dps;
+	pidSetPoint[ROLL] /= 3.0;
 }
 
-void PidController::setPitchDPS(int dps) {
+void PidController::setPitchDPS(double dps) {
 	pidSetPoint[PITCH] = dps;
-
+	pidSetPoint[PITCH] /= 3.0;
 }
 
-void PidController::setYawDPS(int dps) {
+void PidController::setYawDPS(double dps) {
 	pidSetPoint[YAW] = dps;
-
 }
 
 
@@ -488,15 +519,16 @@ void PidController::calculatePidController() {
 	// iterate PID Calculator for roll, pitch, and yaw
 	for(int i = 0; i < 3; i++) {
 		pidRunningError[i] = gyro_sensorPidInput[i] - pidSetPoint[i];
-		pidIntegralMemory[i] += fc_constants::PID_INTEGRAL_GAIN[i] * pidRunningError[i];
-		if(pidIntegralMemory[i] > fc_constants::PID_MAX_OUTPUT[i]) {
-			pidIntegralMemory[i] = fc_constants::PID_MAX_OUTPUT[i];
-		} else if (pidIntegralMemory[i] < (-1 * fc_constants::PID_MAX_OUTPUT[i])) {
-			pidIntegralMemory[i] = (-1 * fc_constants::PID_MAX_OUTPUT[i]);
+		pidIntegralMemory[i] += pidConfigs->getIntegralGain()[i] * pidRunningError[i];
+		if(pidIntegralMemory[i] > pidConfigs->getMaxPidOutput()[i]) {
+			pidIntegralMemory[i] = pidConfigs->getMaxPidOutput()[i];
+		} else if (pidIntegralMemory[i] < (-1 * pidConfigs->getMaxPidOutput()[i])) {
+			pidIntegralMemory[i] = (-1 * pidConfigs->getMaxPidOutput()[i]);
 		}
 
 		// Get PID-output
-		pidOutput[i] = fc_constants::PID_PROPORTIONAL_GAIN[i] * pidRunningError[i] + pidIntegralMemory[i] + fc_constants::PID_DERIVATIVE_GAIN[i] * (pidRunningError[i] - pidLastDifferentialError[i]);
+		pidOutput[i] = pidConfigs->getProportionalGain()[i] * pidRunningError[i] + pidIntegralMemory[i] +
+						pidConfigs->getDerivativeGain()[i] * (pidRunningError[i] - pidLastDifferentialError[i]);
 		pidLastDifferentialError[i] = pidRunningError[i];
 	}
 }
@@ -556,7 +588,7 @@ void* PidController::p_loop() {
 				} else {
 					usleep(500000);
 				}
-			} else if(strncmp(rx_host.c_str(), "F", 1) == 0) {
+			} /*else if(strncmp(rx_host.c_str(), "F", 1) == 0) {
 				//TODO: go forward
 				if(didStartFlight) {
 					flightController->iterativeLoop(enabledRotors);
@@ -607,7 +639,7 @@ void* PidController::p_loop() {
 			} else {
 				std::cout << "Failed command: " << rx_host << " of length " << rx_host.length() << std::endl;
 				sleep(3);
-			}
+			}*/
 			stream.str("");
 			rx_host.clear();
 		} else {

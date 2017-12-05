@@ -35,7 +35,9 @@
 									<listOptionValue builtIn="false" value="rt"/>
 									<listOptionValue builtIn="false" value="mraa"/>
 									<listOptionValue builtIn="false" value="pthread"/>
+									<listOptionValue builtIn="false" value="upm-pca9685"/>
 								</option>
+								<option id="com.intel.iotdevkit.poky.i586.gnu.cpp.option.link.misc.other.1126688245" superClass="com.intel.iotdevkit.poky.i586.gnu.cpp.option.link.misc.other"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.281721641" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>

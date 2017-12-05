@@ -185,22 +185,26 @@ void FlightController::_iterateCurrentState() {
 void FlightController::_updatePidController(char rxEvent) {
 	switch(rxEvent) {
 		case 'B':
-			pidController->setPitchDPS(10);
+			pidController->setPitchDPS(120);
 			break;
 		case 'F':
-			pidController->setPitchDPS(-10);
+			pidController->setPitchDPS(-120);
 			break;
 		case 'L':
-			pidController->setRollDPS(10);
+			pidController->setRollDPS(-120);
 			break;
 		case 'R':
-			pidController->setRollDPS(-10);
+			pidController->setRollDPS(120);
 			break;
 		case 'U':
-			pidController->incrementBaselineThrottle(1);
+			pidController->incrementBaselineThrottle(0.05);
 			break;
 		case 'D':
-			pidController->incrementBaselineThrottle(-1);
+			pidController->incrementBaselineThrottle(-0.05);
+			break;
+		case 'S':
+			pidController->setPitchDPS(0);
+			pidController->setRollDPS(0);
 			break;
 	}
 }
