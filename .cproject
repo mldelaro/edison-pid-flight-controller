@@ -36,6 +36,7 @@
 									<listOptionValue builtIn="false" value="mraa"/>
 									<listOptionValue builtIn="false" value="pthread"/>
 									<listOptionValue builtIn="false" value="upm-pca9685"/>
+									<listOptionValue builtIn="false" value="upm-mpu9150"/>
 								</option>
 								<option id="com.intel.iotdevkit.poky.i586.gnu.cpp.option.link.misc.other.1126688245" superClass="com.intel.iotdevkit.poky.i586.gnu.cpp.option.link.misc.other"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.281721641" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">

@@ -60,9 +60,7 @@ PidController::~PidController() {
 	batteryVoltageAnalogInput->~Aio();
 	batteryVoltageAnalogInput = NULL;
 
-	gyro->~I2C_Slave_Device();
 	gyro = NULL;
-	esc_controller->~I2C_Slave_Device();
 	esc_controller = NULL;
 
 	CsvLoggerPidOutput->~FCLogger();
@@ -140,7 +138,7 @@ PidController::PidController(PidConfig* config) {
 	mraa::init();
 
 	i2c_controller = NULL;
-	i2c_slaveDevices = NULL;
+	//i2c_slaveDevices = NULL;
 	gyro = NULL;
 	esc_controller = NULL;
 	currentStatus = INIT;
@@ -156,30 +154,14 @@ PidController::PidController(PidConfig* config) {
 	}
 
 	PidControlLogger->logStream << "Initializing I2C Devices..." << std::endl;
-	mraa::I2c* i2c_controller = new mraa::I2c(0);
-
-	mraa::Result setI2cFreqReturnCode = i2c_controller->frequency(mraa::I2cMode::I2C_FAST); // operate in standard 100kHz mode
-	if(setI2cFreqReturnCode != mraa::Result::SUCCESS) {
-		PidControlLogger->logStream << "[FAIL] Failed to initialize I2C Bus in Fast mode..." << std::endl;
-		std::cout << "[FAIL] Failed to initialize I2C Bus in Fast mode..." << std::endl;
-		status_led->setRGB(true, false, false);
-	} else {
-		PidControlLogger->logStream << "[DONE] Initialized I2C in Fast mode...." << std::endl;
-		std::cout << "[DONE] Initialized I2C in Fast mode..." << std::endl;
-	}
-
-	PidControlLogger->logStream << "Initializing I2C Slave Device...." << std::endl;
-	std::cout << "Initializing I2C Slave Device..." << std::endl;
-	i2c_slaveDevices = new I2C_Slave_Device*[fc_constants::I2C_DEVICE_COUNT];
-
 
 	PidControlLogger->logStream << "Constructing Gyro..." << std::endl;
 	std::cout << "Constructing Gyro..." << std::endl;
 	PidControlLogger->logStream << "Initializing Gyro I2C Device...." << std::endl;
 	std::cout << "Initializing Gyro I2C Device..." << std::endl;
-	gyro = new Gyro_Impl_MPU6050(fc_constants::I2C_ADDR_GYRO, i2c_controller);
+	gyro = new Gyro_Impl_MPU6050(fc_constants::I2C_ADDR_GYRO);
 	gyro->init();
-	i2c_slaveDevices[0] = gyro;
+	//i2c_slaveDevices[0] = gyro;
 	usleep(100);
 	PidControlLogger->logStream << "[DONE] Initialized Gyro I2C Device...." << std::endl;
 	std::cout << "[DONE] Initialized Gyro I2C Device..." << std::endl;
@@ -187,9 +169,9 @@ PidController::PidController(PidConfig* config) {
 	PidControlLogger->logStream << "Constructing ESC Controller..." << std::endl;
 	PidControlLogger->logStream << "Initializing ESC Controller I2C Device...." << std::endl;
 	std::cout << "Initializing ESC Controller I2C Device..." << std::endl;
-	esc_controller = new ESC_Impl_PCA9685(fc_constants::I2C_ADDR_ESC_CONTROLLER, i2c_controller, 4);
+	esc_controller = new ESC_Impl_PCA9685(fc_constants::I2C_ADDR_ESC_CONTROLLER);
 	esc_controller->init();
-	i2c_slaveDevices[1] = esc_controller;
+	//i2c_slaveDevices[1] = esc_controller;
 	usleep(100);
 
 	esc_controller->setPwmFrequency(300);

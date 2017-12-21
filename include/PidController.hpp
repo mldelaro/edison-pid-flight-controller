@@ -19,12 +19,11 @@
 #include "../include/utility/PidConfig.hpp"
 #include "../include/utility/Properties.hpp"
 
-#include "./hardware/I2C_Slave_Device.hpp"
 #include "./hardware/interface/Gyro_Interface.hpp"
 #include "./hardware/interface/ESC_Controller_Interface.hpp"
 #include "./hardware/interface/LED_RGB_Interface.hpp"
-#include "./hardware/implementation/Gyro_Impl_MPU6050.hpp"
-#include "./hardware/implementation/ESC_Impl_PCA9685.hpp"
+#include "./hardware/implementation/upm/Gyro_Impl_MPU6050.hpp"
+#include "./hardware/implementation/upm/ESC_Impl_PCA9685.hpp"
 #include "./hardware/implementation/LED_Impl.hpp"
 
 
@@ -59,7 +58,6 @@ public:
 private:
 	state currentStatus;
 
-	I2C_Slave_Device** i2c_slaveDevices;
 	mraa::I2c* i2c_controller;
 
 	Gyro_Interface* gyro;

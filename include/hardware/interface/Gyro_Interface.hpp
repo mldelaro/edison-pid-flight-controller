@@ -3,13 +3,20 @@
 
 #include <exception>
 #include "stdint.h"
-#include "./../I2C_Slave_Device.hpp"
+#include "./../../utility/MethodNotImplementedException.hpp"
 
-class Gyro_Interface : public I2C_Slave_Device
+
+class Gyro_Interface //: public I2C_Slave_Device
 {
 	public:
-		Gyro_Interface(int i2c_address, mraa::I2c* i2c_controller) : I2C_Slave_Device(i2c_address, i2c_controller) {
+
+		Gyro_Interface(int i2c_address) {
 		}
+
+		Gyro_Interface(int i2c_address, mraa::I2c* i2c_controller) {
+		}
+
+		virtual void init() {}
 
 		virtual ~Gyro_Interface() {
 		}
