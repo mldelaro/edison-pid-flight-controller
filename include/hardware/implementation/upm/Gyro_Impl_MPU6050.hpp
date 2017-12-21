@@ -73,29 +73,37 @@ public:
 	void init() {
 		bool didSucceed = false;
 		while(!didSucceed) {
-			std::cout << "MPU6050 - INIT" << std::endl;
+			didSucceed = true;
+			std::cout << "MPU6050 - INIT via UPM" << std::endl;
 
 			// Activate MPU6050
 			if(mpu6050->init()) {
+				usleep(15);
 				// Set Register for 500dps @ full scale
-				mpu6050->setGyroscopeScale(upm::MPU60X0::FS_SEL_T::FS_500);
+				if(mpu6050->setGyroscopeScale(upm::MPU60X0::FS_SEL_T::FS_500)) {
+					std::cout << "Set gyro scale to 500dps" << std::endl;
+				} else {
+					didSucceed = false;
+				}
 				// Set Register for +/- 8g @ full scale
-				mpu6050->setAccelerometerScale(upm::MPU60X0::AFS_SEL_T::AFS_8);
+				if(mpu6050->setAccelerometerScale(upm::MPU60X0::AFS_SEL_T::AFS_8)) {
+					std::cout << "Set accelerometer scale to +/-8 G's" << std::endl;
+				} else {
+					didSucceed = false;
+				}
 				// Set Register for Digital Low Pass Filter
-				mpu6050->setDigitalLowPassFilter(upm::MPU60X0::DLPF_44_42);
+				if(mpu6050->setDigitalLowPassFilter(upm::MPU60X0::DLPF_44_42)) {
+					std::cout << "Set Low pass filter" << std::endl;
+				} else {
+					didSucceed = false;
+				}
+				usleep(15);
+			} else {
+				std::cout << "Failed to initialize GYRO_MPU6050" << std::endl;
 			}
 
 			gyro_lsbPerDps = MPU6050_FS_SEL_1_GYRO_LSB;
 			acc_lsbPerG = MPU6050_FS_SEL_1_ACC_LSB;
-
-			// SELF-CHECK: read back configurations
-			// Read from Register 0x1B
-			if(mpu6050->readReg(upm::MPU60X0::REG_ACCEL_CONFIG) != upm::MPU60X0::AFS_SEL_T::AFS_8) {
-				std::cout << "Failed to initialize GYRO_MPU6050" << std::endl;
-				std::cout << "Resetting..." << std::endl;
-			} else {
-				didSucceed = true;
-			}
 		}
 	}
 

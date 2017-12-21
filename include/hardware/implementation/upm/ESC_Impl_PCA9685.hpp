@@ -32,6 +32,7 @@ const int ESC_PWM_FREQ_HZ = 300;
 
 class ESC_Impl_PCA9685 : public ESC_Controller_Interface {
 private:
+	upm::PCA9685* pca9685;
 	int* rotorThrottle;
 
 	void _RESTART() {
@@ -49,14 +50,16 @@ private:
 public:
 
 	ESC_Impl_PCA9685(int i2c_address) : ESC_Controller_Interface(i2c_address) {
-		std::cout << "PCA9685 - Constructor" << std::endl;
-		rotorThrottle = new int[rotorCount];
+		std::cout << "PCA9685 - Constructor via UPM" << std::endl;
+		rotorThrottle = new int[4]; // rotor throttle for each rotor on quadcopter
+		pca9685 = new upm::PCA9685(PCA9685_I2C_BUS, PCA9685_DEFAULT_I2C_ADDR);
 	}
 
 	void startup() {
 	}
 
 	void setPwmFrequency(float frequencyHz) {
+		pca9685->setPrescaleFromHz(frequencyHz);
 	}
 
 	void setThrottlePwmDutyCycle(int rotor, int dutyCycle) {

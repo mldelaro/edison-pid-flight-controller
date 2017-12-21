@@ -523,7 +523,7 @@ void* PidController::p_loop() {
 	);
 	boost::interprocess::mapped_region region(shared_mem_pilot, boost::interprocess::read_write);
 	std::stringstream stream;
-	Properties* fcProperties = new Properties("/home/root/FlightController/flightController.properties");
+	Properties* fcProperties = new Properties("/home/root/flight-controller/flight-controller.properties");
 	pidConfigs = new PidConfig(fcProperties);
 
 	PidController* flightController = new PidController(pidConfigs);

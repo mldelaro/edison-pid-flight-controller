@@ -54,14 +54,6 @@ protected:
 	}
 
 public:
-
-	class METHOD_NOT_IMPLEMENTED: public std::exception
-	{
-		virtual const char* getException() const throw() {
-			return "Method not implemented";
-		}
-	} methodNotImplementedException;
-
 	virtual void init(){
 		throw methodNotImplementedException;
 	}

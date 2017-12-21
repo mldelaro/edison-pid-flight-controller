@@ -78,7 +78,7 @@ public:
 	void init() {
 		bool didSucceed = false;
 		while(!didSucceed) {
-			std::cout << "MPU6050 - INIT" << std::endl;
+			std::cout << "MPU6050 - INIT via Default" << std::endl;
 
 			// Write to PWR_MGMT_1 Register - 0x6B
 			// Activate gyro by writing 0 to register bits

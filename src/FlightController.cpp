@@ -143,7 +143,7 @@ void FlightController::_iterateCurrentState() {
 			{
 				std::cout << "==== INIT ====" << std::endl;
 				pilotMemStream = "S";
-				Properties* pidConfigProperties = new Properties("/home/root/runtime/FlightController/flightController.properties");
+				Properties* pidConfigProperties = new Properties("/home/root/flight-controller/flight-controller.properties");
 				PidConfig* pidConfig = new PidConfig(pidConfigProperties);
 				pidController = new PidController(pidConfig);
 				pidController->setup();

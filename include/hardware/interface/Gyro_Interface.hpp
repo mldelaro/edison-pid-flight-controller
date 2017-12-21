@@ -5,7 +5,6 @@
 #include "stdint.h"
 #include "./../../utility/MethodNotImplementedException.hpp"
 
-
 class Gyro_Interface //: public I2C_Slave_Device
 {
 	public:
@@ -22,40 +21,40 @@ class Gyro_Interface //: public I2C_Slave_Device
 		}
 
 		virtual void callibrateGyro(int sampleCount) {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 		}
 
 		virtual void read() {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 		}
 
 		virtual double getRoll_DPS () {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 			return -1;
 		}
 
 		virtual double getPitch_DPS () {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 			return -1;
 		}
 
 		virtual double getYaw_DPS () {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 			return -1;
 		}
 
 		virtual double getAccX_G () {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 			return -1;
 		}
 
 		virtual double getAccY_G () {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 			return -1;
 		}
 
 		virtual double getAccZ_G () {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 			return -1;
 		}
 };

@@ -21,27 +21,27 @@ class ESC_Controller_Interface
 		virtual void init() {}
 
 		virtual void setPwmFrequency(float frequencyHz) {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 		}
 
 		virtual void setPwmCycle(int channel, int on, int off) {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 		}
 
 		virtual void startup() {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 		}
 
 		virtual void restart() {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 		}
 
 		virtual void setThrottlePwmDutyCycle(int rotor, int dutyCycle) {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 		}
 
 		virtual int getThrottlePwmDutyCycleForRotor(int rotor) {
-			throw methodNotImplementedException;
+			throw new METHOD_NOT_IMPLEMENTED();
 			return -1;
 		}
 
