@@ -93,7 +93,10 @@ char FlightController::_parseEventCharFromRxSharedMemory() {
 //		std::cout << "Parsed: " << directive << std::endl;
 		return directive[0];
 	} catch(std::exception e) {
-		std::cout << "Failed to parse " << rxSharedMemory << std::endl;
+		if(!rxSharedMemory.empty()) {
+			std::cout << "Failed to parse " << rxSharedMemory << std::endl;
+			sleep(3);
+		}
 		//strncpy((char*)regionRX->get_address(), "{\"command\":\"S\"}\0", BUFLEN);
 		return 'S';
 	}

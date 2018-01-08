@@ -123,7 +123,7 @@ public:
 		for(int currentSampleIndex = 0; currentSampleIndex < sampleCount; currentSampleIndex++) {
 			read();
 			usleep(15);
-			mpu6050->getAccelerometer(&gyro_x, &gyro_y, &gyro_z);
+			mpu6050->getGyroscope(&gyro_x, &gyro_y, &gyro_z);
 			gyro_sensorOffset[0] += gyro_x;
 			gyro_sensorOffset[1] += gyro_y;
 			gyro_sensorOffset[2] += gyro_z;
@@ -141,6 +141,16 @@ public:
 
 	void read() {
 		mpu6050->update();
+		mpu6050->getGyroscope(&gyro_x, &gyro_y, &gyro_z);
+		mpu6050->getAccelerometer(&acc_x, &acc_y, &acc_z);
+
+		gyro_x_DPS = gyro_x - gyro_sensorOffset[0];
+		gyro_y_DPS = gyro_y - gyro_sensorOffset[1];
+		gyro_z_DPS = gyro_z - gyro_sensorOffset[2];
+
+		acc_x_G = acc_x;
+		acc_y_G = acc_y;
+		acc_z_G = acc_z;
 	}
 
 	double getRoll_DPS () {
