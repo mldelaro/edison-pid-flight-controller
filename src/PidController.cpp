@@ -496,6 +496,37 @@ void PidController::setYawDPS(double dps) {
 	pidSetPoint[YAW] = dps;
 }
 
+double PidController::getNormalizedGyroX() {
+	return gyro_sensorNormalized[ROLL];
+}
+double PidController::getNormalizedGyroY() {
+	return gyro_sensorNormalized[PITCH];
+}
+double PidController::getNormalizedGyroZ() {
+	return gyro_sensorNormalized[YAW];
+}
+double PidController::getAccelerationX() {
+	if(gyro) {
+		return gyro->getAccX_G();
+	} else {
+		return 0;
+	}
+}
+double PidController::getAccelerationY() {
+	if(gyro) {
+		return gyro->getAccY_G();
+	} else {
+		return 0;
+	}
+}
+double PidController::getAccelerationZ() {
+	if(gyro) {
+		return gyro->getAccZ_G();
+	} else {
+		return 0;
+	}
+}
+
 
 void PidController::calculatePidController() {
 	// iterate PID Calculator for roll, pitch, and yaw

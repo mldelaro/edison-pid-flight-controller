@@ -45,6 +45,13 @@ public:
 	void setPitchDPS(double dps);
 	void setYawDPS(double dps);
 
+	double getNormalizedGyroX();
+	double getNormalizedGyroY();
+	double getNormalizedGyroZ();
+	double getAccelerationX();
+	double getAccelerationY();
+	double getAccelerationZ();
+
 	void _TEST_ROTORS();
 	void _STOP();
 

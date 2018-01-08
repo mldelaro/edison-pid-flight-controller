@@ -1,4 +1,9 @@
 #include "../include/FlightController.hpp"
+#include "../include/json.hpp" // IMPROVE: Move to header
+
+#define BUFLEN 512  //Max length of buffer
+
+using json = nlohmann::json;
 
 FlightController::FlightController() {
 	pidController = NULL;
@@ -8,15 +13,25 @@ FlightController::FlightController() {
 	runningSetPoints[1] = 0;
 	runningSetPoints[2] = 0;
 	runningBaselineThrottle = 0;
+	directiveString = "standby";
 
 	// Don't run until remote is initialized
 	while(!udpRuntimeFound) {
 		try {
-			runtimeUdpReceiver = new boost::interprocess::shared_memory_object(
+			sharedMemUdpRX = new boost::interprocess::shared_memory_object(
 					boost::interprocess::open_only,
-					"shared_mem_udp_receiver",
+					"shared_mem_udp_RX",
 					boost::interprocess::read_write
 			);
+			regionRX = new boost::interprocess::mapped_region(*sharedMemUdpRX, boost::interprocess::read_write);
+
+			sharedMemUdpTX = new boost::interprocess::shared_memory_object(
+					boost::interprocess::open_only,
+					"shared_mem_udp_TX",
+					boost::interprocess::read_write
+			);
+			regionTX = new boost::interprocess::mapped_region(*sharedMemUdpTX, boost::interprocess::read_write);
+
 			udpRuntimeFound = true;
 		}  catch(boost::interprocess::interprocess_exception& ex) {
 			std::cout << "Failed to open shared memory for UDP receiver..." << std::endl;
@@ -40,7 +55,8 @@ FlightController::FlightController() {
 }
 
 FlightController::~FlightController() {
-	runtimeUdpReceiver = NULL;
+	sharedMemUdpRX = NULL;
+	sharedMemUdpTX = NULL;
 	runtimePidControllerMemory = NULL;
 }
 
@@ -51,10 +67,11 @@ void FlightController::run() {
 		charNewRxEvent = _parseEventCharFromRxSharedMemory();
 		TransitionEvent newRxEvent = _charToEvent(charNewRxEvent);
 		if(lastEvent != newRxEvent) {
-			// change in shared memory; check for valid next state
+			// event changed in shared memory; check for valid next state
 			_updateState(newRxEvent);
 		}
 
+		// state is either in flight, or in a false flight
 		if(currentState == TransitionState::flight || currentState == TransitionState::fstart){
 			_updatePidController(charNewRxEvent);
 		}
@@ -65,12 +82,21 @@ void FlightController::run() {
 /* PRIVATE MEMBER FUNCTIONS */
 char FlightController::_parseEventCharFromRxSharedMemory() {
 	// read event from shared memory
-	std::stringstream stream;
-	boost::interprocess::mapped_region region(*runtimeUdpReceiver, boost::interprocess::read_write);
-	stream.rdbuf()->pubsetbuf((char*)region.get_address(), region.get_size());
-	std::string rxSharedMemory = stream.str();
-
-	return rxSharedMemory[0];
+	std::stringstream rxStream;
+	rxStream.rdbuf()->pubsetbuf((char*)regionRX->get_address(), regionRX->get_size());
+	std::string rxSharedMemory = rxStream.str();
+	// parse directive from RX json
+//	std::cout << "Parsing: " << rxSharedMemory << std::endl;
+	try {
+		json jsonRxUDP = json::parse(rxSharedMemory);
+		string directive = jsonRxUDP.value("command", "S");
+//		std::cout << "Parsed: " << directive << std::endl;
+		return directive[0];
+	} catch(std::exception e) {
+		std::cout << "Failed to parse " << rxSharedMemory << std::endl;
+		//strncpy((char*)regionRX->get_address(), "{\"command\":\"S\"}\0", BUFLEN);
+		return 'S';
+	}
 }
 
 FlightController::TransitionEvent FlightController::_charToEvent(char rxEvent) {
@@ -141,6 +167,7 @@ void FlightController::_iterateCurrentState() {
 	switch(currentState) {
 		case TransitionState::init :
 			{
+				statusString = "initializing";
 				std::cout << "==== INIT ====" << std::endl;
 				pilotMemStream = "S";
 				Properties* pidConfigProperties = new Properties("/home/root/flight-controller/flight-controller.properties");
@@ -153,11 +180,13 @@ void FlightController::_iterateCurrentState() {
 			break;
 		case TransitionState::ready :
 			{
+				statusString = "standby";
 				pidController->_STOP();
 				break;
 			}
 		case TransitionState::test :
 		{
+			statusString = "testing";
 			std::cout << "==== TEST ====" << std::endl;
 			pidController->_TEST_ROTORS();
 			currentState = TransitionState::ready;
@@ -166,43 +195,67 @@ void FlightController::_iterateCurrentState() {
 		}
 		case TransitionState::fstart :
 			{
+				statusString = "false-start";
 				pidController->iterativeLoop(false);
 				break;
 			}
 		case TransitionState::flight :
 			{
+				statusString = "in-flight";
 				pidController->iterativeLoop(true);
 				break;
 			}
 		default:
 			{
+				statusString = "BAD_STATUS";
 				std::cout << "Currently at BAD_STATE" << std::endl;
 				break;
 			}
 	}
+
+	json jsonTx = {
+		{"status", statusString},
+		{"directive", directiveString},
+		{"gyroX", pidController->getNormalizedGyroX()},
+		{"gyroY", pidController->getNormalizedGyroY()},
+		{"gyroZ", pidController->getNormalizedGyroZ()},
+		{"accX", pidController->getAccelerationX()},
+		{"accY", pidController->getAccelerationY()},
+		{"accZ", pidController->getAccelerationZ()}
+	};
+
+	// copy TX_JSON message into the shared memory
+	strncpy((char*)regionTX->get_address(), jsonTx.dump().c_str(), BUFLEN);
 }
 
 void FlightController::_updatePidController(char rxEvent) {
 	switch(rxEvent) {
 		case 'B':
+			directiveString = "backward";
 			pidController->setPitchDPS(120);
 			break;
 		case 'F':
+			directiveString = "forward";
 			pidController->setPitchDPS(-120);
 			break;
 		case 'L':
+			directiveString = "left";
 			pidController->setRollDPS(-120);
 			break;
 		case 'R':
+			directiveString = "right";
 			pidController->setRollDPS(120);
 			break;
 		case 'U':
+			directiveString = "up";
 			pidController->incrementBaselineThrottle(0.05);
 			break;
 		case 'D':
+			directiveString = "down";
 			pidController->incrementBaselineThrottle(-0.05);
 			break;
 		case 'S':
+			directiveString = "standby";
 			pidController->setPitchDPS(0);
 			pidController->setRollDPS(0);
 			break;

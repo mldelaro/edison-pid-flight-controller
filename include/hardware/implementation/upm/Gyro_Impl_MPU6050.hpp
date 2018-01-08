@@ -23,13 +23,13 @@ const float MPU6050_FS_SEL_3_ACC_LSB = 2048;
 class Gyro_Impl_MPU6050 : public Gyro_Interface {
 private:
 	upm::MPU60X0* mpu6050;
-	int16_t acc_x;
-	int16_t acc_y;
-	int16_t acc_z;
+	float acc_x;
+	float acc_y;
+	float acc_z;
 
-	int16_t gyro_x;
-	int16_t gyro_y;
-	int16_t gyro_z;
+	float gyro_x;
+	float gyro_y;
+	float gyro_z;
 
 	int temp;
 
@@ -37,7 +37,7 @@ private:
 
 	float gyro_lsbPerDps;
 	float acc_lsbPerG;
-	float gyro_sensorOffset[3];
+	double gyro_sensorOffset[3];
 
 	double acc_x_G;
 	double acc_y_G;
@@ -123,14 +123,16 @@ public:
 		for(int currentSampleIndex = 0; currentSampleIndex < sampleCount; currentSampleIndex++) {
 			read();
 			usleep(15);
+			mpu6050->getAccelerometer(&gyro_x, &gyro_y, &gyro_z);
 			gyro_sensorOffset[0] += gyro_x;
 			gyro_sensorOffset[1] += gyro_y;
 			gyro_sensorOffset[2] += gyro_z;
+			usleep(15);
 		}
 		isCallibrated = true;
-		gyro_sensorOffset[0] /= sampleCount;
-		gyro_sensorOffset[1] /= sampleCount;
-		gyro_sensorOffset[2] /= sampleCount;
+		gyro_sensorOffset[0] /= (double)sampleCount;
+		gyro_sensorOffset[1] /= (double)sampleCount;
+		gyro_sensorOffset[2] /= (double)sampleCount;
 
 		std::cout << "Callibrated Gyro Roll: " << gyro_sensorOffset[0] << std::endl;
 		std::cout << "Callibrated Gyro Pitch: " << gyro_sensorOffset[1] << std::endl;
@@ -138,7 +140,7 @@ public:
 	}
 
 	void read() {
-
+		mpu6050->update();
 	}
 
 	double getRoll_DPS () {

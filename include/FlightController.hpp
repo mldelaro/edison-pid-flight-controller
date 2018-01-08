@@ -39,8 +39,11 @@ private:
 			{TransitionState::flight,	TransitionState::flight,	TransitionState::flight,	TransitionState::flight,	TransitionState::ready,		TransitionState::flight}		// flight
 	};
 
-	boost::interprocess::shared_memory_object* runtimeUdpReceiver;
+	boost::interprocess::shared_memory_object* sharedMemUdpRX;
+	boost::interprocess::shared_memory_object* sharedMemUdpTX;
 	boost::interprocess::shared_memory_object* runtimePidControllerMemory;
+	boost::interprocess::mapped_region* regionRX;
+	boost::interprocess::mapped_region* regionTX;
 	TransitionState currentState;
 	TransitionEvent lastEvent;
 
@@ -50,6 +53,8 @@ private:
 	double runningSetPoints[3];
 	double runningBaselineThrottle;
 	PidController* pidController;
+	const char* statusString;
+	const char* directiveString;
 
 	char _parseEventCharFromRxSharedMemory();
 	TransitionEvent _charToEvent(char event);
