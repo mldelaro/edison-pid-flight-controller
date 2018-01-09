@@ -190,7 +190,25 @@ void FlightController::_iterateCurrentState() {
 		case TransitionState::test :
 		{
 			statusString = "testing";
+			directiveString = "start test";
 			std::cout << "==== TEST ====" << std::endl;
+
+			// Test is a blocking thread...
+			// Write updated status before starting rotor test
+			json jsonTx = {
+				{"status", statusString},
+				{"directive", directiveString},
+				{"gyroX", pidController->getNormalizedGyroX()},
+				{"gyroY", pidController->getNormalizedGyroY()},
+				{"gyroZ", pidController->getNormalizedGyroZ()},
+				{"accX", pidController->getAccelerationX()},
+				{"accY", pidController->getAccelerationY()},
+				{"accZ", pidController->getAccelerationZ()}
+			};
+
+			// copy TX_JSON message into the shared memory
+			strncpy((char*)regionTX->get_address(), jsonTx.dump().c_str(), BUFLEN);
+
 			pidController->_TEST_ROTORS();
 			currentState = TransitionState::ready;
 			std::cout << "==== READY ====" << std::endl;
@@ -198,7 +216,7 @@ void FlightController::_iterateCurrentState() {
 		}
 		case TransitionState::fstart :
 			{
-				statusString = "false-start";
+				statusString = "false-flight";
 				pidController->iterativeLoop(false);
 				break;
 			}

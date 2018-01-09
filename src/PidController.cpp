@@ -402,9 +402,9 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "AccPitch: " << accAngleMeasuredFromNormalG[PITCH] << std::endl;
 //			std::cout << "AccRoll: " << accAngleMeasuredFromNormalG[ROLL] << std::endl;
 
-//			std::cout << "Roll Gyro Output: " << gyro->getRoll_DPS() << std::endl;
-//			std::cout << "Pitch Gyro Ouptut: " << gyro->getPitch_DPS() << std::endl;
-//			std::cout << "Yaw Gyro Ouptut: " << gyro->getYaw_DPS() << std::endl;
+			std::cout << "Roll Gyro Output: " << gyro->getRoll_DPS() << std::endl;
+			std::cout << "Pitch Gyro Ouptut: " << gyro->getPitch_DPS() << std::endl;
+			std::cout << "Yaw Gyro Ouptut: " << gyro->getYaw_DPS() << std::endl;
 
 //			std::cout << "Roll PID Setpoint: " << pidSetPoint[ROLL] << std::endl;
 //			std::cout << "Pitch PID Setpoint: " << pidSetPoint[PITCH] << std::endl;
@@ -418,10 +418,10 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "Pitch PID Ouptut: " << pidOutput[PITCH] << std::endl;
 //			std::cout << "Yaw PID Ouptut: " << pidOutput[YAW] << std::endl;
 
-			std::cout << "ROTOR 1 Throttle: " << pidRunningThrottle[0] << std::endl;
-			std::cout << "ROTOR 2 Throttle: " << pidRunningThrottle[1] << std::endl;
-			std::cout << "ROTOR 3 Throttle: " << pidRunningThrottle[2] << std::endl;
-			std::cout << "ROTOR 4 Throttle: " << pidRunningThrottle[3] << std::endl;
+//			std::cout << "ROTOR 1 Throttle: " << pidRunningThrottle[0] << std::endl;
+//			std::cout << "ROTOR 2 Throttle: " << pidRunningThrottle[1] << std::endl;
+//			std::cout << "ROTOR 3 Throttle: " << pidRunningThrottle[2] << std::endl;
+//			std::cout << "ROTOR 4 Throttle: " << pidRunningThrottle[3] << std::endl;
 
 
 //			pidRunningThrottle[0] = pidRunningBaselineThrottle - pidOutput[PITCH] - pidOutput[ROLL] + pidOutput[YAW];
