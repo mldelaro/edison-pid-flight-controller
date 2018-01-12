@@ -26,7 +26,7 @@ const int ENABLE_INVRT = 0x08;
 const int ENABLE_RESET = 0x80;
 const int ENABLE_SLEEP = 0x10;
 
-const int ESC_PWM_FREQ_HZ = 300;
+const int ESC_PWM_FREQ_HZ = 50;
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
@@ -36,6 +36,19 @@ private:
 	int* rotorThrottle;
 
 	void _RESTART() {
+		if(pca9685->setModeSleep(true)) {
+			std::cout << "PCA9685 - Put in sleep mode..." << std::endl;
+		} else {
+			std::cout << "PCA9685 - FAILED to put in sleep mode..." << std::endl;
+		}
+
+		setPwmFrequency(ESC_PWM_FREQ_HZ);
+
+		if(pca9685->setModeSleep(false)) {
+			std::cout << "PCA9685 - waking up..." << std::endl;
+		} else {
+			std::cout << "PCA9685 - FAILED to wake up..." << std::endl;
+		}
 	}
 
 	void SET_DRIVER_ALL_OFF() {
@@ -45,6 +58,12 @@ private:
 	}
 
 	void setPwmCycle(int channel, int on, int off) {
+		if(!pca9685->ledOnTime(channel, on)) {
+			std::cout << "PCA9685 - FAILED to set led on-time..." << std::endl;
+		}
+		if(!pca9685->ledOffTime(channel, off)) {
+			std::cout << "PCA9685 - FAILED to set led off-time..." << std::endl;
+		}
 	}
 
 public:
@@ -59,7 +78,13 @@ public:
 	}
 
 	void setPwmFrequency(float frequencyHz) {
-		pca9685->setPrescaleFromHz(frequencyHz);
+		//pca9685->setModeSleep(true);
+		if(pca9685->setPrescaleFromHz(frequencyHz)) {
+			std::cout << "PCA9685 - Reset pwm frequency..." << std::endl;
+		} else {
+			std::cout << "PCA9685 - Failed to Reset pwm frequency..." << std::endl;
+		}
+		//pca9685->setModeSleep(false);
 	}
 
 	void setThrottlePwmDutyCycle(int rotor, int dutyCycle) {

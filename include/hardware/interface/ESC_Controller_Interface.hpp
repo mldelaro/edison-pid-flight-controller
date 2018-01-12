@@ -4,8 +4,9 @@
 #include <exception>
 #include "stdint.h"
 #include "./../../utility/MethodNotImplementedException.hpp"
+#include "./../I2C_Slave_Device.hpp"
 
-class ESC_Controller_Interface
+class ESC_Controller_Interface : protected I2C_Slave_Device
 {
 	protected:
 		int rotorCount;

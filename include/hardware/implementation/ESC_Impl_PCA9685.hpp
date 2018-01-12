@@ -80,7 +80,7 @@ private:
 
 public:
 
-	ESC_Impl_PCA9685(int i2c_address, mraa::I2c* i2c_controller, int rotorCount) : ESC_Controller_Interface(i2c_address, i2c_controller, rotorCount) {
+	ESC_Impl_PCA9685(int i2c_address) : ESC_Controller_Interface(i2c_address) {
 		std::cout << "PCA9685 - Constructor" << std::endl;
 		rotorThrottle = new int[rotorCount];
 	}

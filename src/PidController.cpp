@@ -174,7 +174,7 @@ PidController::PidController(PidConfig* config) {
 	//i2c_slaveDevices[1] = esc_controller;
 	usleep(100);
 
-	esc_controller->setPwmFrequency(300);
+	// esc_controller->setPwmFrequency(300); default of 300 at init
 	esc_controller->setPwmCycle(0, 0, 800);
 	esc_controller->setPwmCycle(1, 0, 800);
 	esc_controller->setPwmCycle(2, 0, 800);

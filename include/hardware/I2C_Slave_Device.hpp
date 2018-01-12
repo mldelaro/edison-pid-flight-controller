@@ -55,7 +55,7 @@ protected:
 
 public:
 	virtual void init(){
-		throw methodNotImplementedException;
+		throw new METHOD_NOT_IMPLEMENTED;
 	}
 
 	virtual ~I2C_Slave_Device() {
