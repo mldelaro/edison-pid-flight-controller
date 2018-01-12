@@ -16,6 +16,12 @@ class ESC_Controller_Interface : protected I2C_Slave_Device
 			this->rotorCount = 4;
 		}
 
+		ESC_Controller_Interface(int i2c_address, mraa::I2c* i2c_controller, int rotorCount) {
+			this->rotorCount = 4;
+			this->i2c = i2c_controller;
+			this->i2c_address = i2c_address;
+		}
+
 		virtual ~ESC_Controller_Interface() {
 		}
 
