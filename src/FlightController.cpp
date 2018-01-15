@@ -55,9 +55,11 @@ FlightController::FlightController() {
 }
 
 FlightController::~FlightController() {
-	sharedMemUdpRX = NULL;
-	sharedMemUdpTX = NULL;
-	runtimePidControllerMemory = NULL;
+	delete pidController;
+	delete sharedMemUdpRX;
+	delete sharedMemUdpTX;
+	delete runtimePidControllerMemory;
+	delete flightControllerProperties;
 }
 
 void FlightController::run() {

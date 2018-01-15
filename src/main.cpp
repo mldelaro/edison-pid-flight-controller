@@ -8,18 +8,28 @@
 #include <cstdlib>
 #include <string>
 #include <sstream> // ostringstream
-
+#include <csignal> // for SIGNT
 
 #include "../include/FlightController.hpp"
 #include "../include/FCLogger.hpp"
 
-//PidController *flightController;
-volatile int* channels[4];
+FlightController* flightController = NULL;
 
+void _SIG_HANDLER_ (int sig) {
+	std::cout << "Interrupt signal received " << sig << std::endl;
 
+	if(flightController != NULL) {
+		delete flightController;
+	}
+
+	exit(sig);
+}
 
 int main()
 {
+	// register SIGINT
+	signal(SIGINT, _SIG_HANDLER_);
+
 	/* System Check */
 	mraa::Platform platform = mraa::getPlatformType();
 	if(platform == mraa::INTEL_EDISON_FAB_C) {
@@ -46,7 +56,7 @@ int main()
 	std::cout << "Starting PID Controller..." << std::endl;
 
 
-	FlightController* flightController = new FlightController();
+	flightController = new FlightController();
 	flightController->run();
 
 	/*start the controller from a thread*

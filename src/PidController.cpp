@@ -60,16 +60,18 @@ PidController::~PidController() {
 	batteryVoltageAnalogInput->~Aio();
 	batteryVoltageAnalogInput = NULL;
 
-	gyro = NULL;
-	esc_controller = NULL;
+	delete gyro;
+	delete esc_controller;
+	delete CsvLoggerPidOutput;
+	delete CsvLoggerGyroRawOutput;
+	delete PidControlLogger;
+	delete PidErrorLogger;
 
-	CsvLoggerPidOutput->~FCLogger();
+	gyro = null;
+	esc_controller = null;
 	CsvLoggerPidOutput = NULL;
-	CsvLoggerGyroRawOutput->~FCLogger();
 	CsvLoggerGyroRawOutput = NULL;
-	PidControlLogger->~FCLogger();
 	PidControlLogger = NULL;
-	PidErrorLogger->~FCLogger();
 	PidErrorLogger = NULL;
 }
 
