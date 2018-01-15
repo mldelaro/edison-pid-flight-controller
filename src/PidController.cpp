@@ -424,9 +424,9 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "AccPitch: " << accAngleMeasuredFromNormalG[PITCH] << std::endl;
 //			std::cout << "AccRoll: " << accAngleMeasuredFromNormalG[ROLL] << std::endl;
 
-			std::cout << "Roll Gyro Output: " << gyro->getRoll_DPS() << std::endl;
-			std::cout << "Pitch Gyro Ouptut: " << gyro->getPitch_DPS() << std::endl;
-			std::cout << "Yaw Gyro Ouptut: " << gyro->getYaw_DPS() << std::endl;
+//			std::cout << "Roll Gyro Output: " << gyro->getRoll_DPS() << std::endl;
+//			std::cout << "Pitch Gyro Ouptut: " << gyro->getPitch_DPS() << std::endl;
+//			std::cout << "Yaw Gyro Ouptut: " << gyro->getYaw_DPS() << std::endl;
 
 //			std::cout << "Roll PID Setpoint: " << pidSetPoint[ROLL] << std::endl;
 //			std::cout << "Pitch PID Setpoint: " << pidSetPoint[PITCH] << std::endl;
@@ -730,9 +730,9 @@ void PidController::_TEST_ROTORS() {
 }
 
 void PidController::_STOP() {
-	status_led->setRGB(false, true, true);
-	esc_controller->setPwmCycle(0, 0, 800);
-	esc_controller->setPwmCycle(1, 0, 800);
-	esc_controller->setPwmCycle(2, 0, 800);
-	esc_controller->setPwmCycle(3, 0, 800);
+	status_led->setRGB(false, true, false);
+	esc_controller->setPwmCycle(ROTOR_1_CHANNEL, 0, 800);
+	esc_controller->setPwmCycle(ROTOR_2_CHANNEL, 0, 800);
+	esc_controller->setPwmCycle(ROTOR_3_CHANNEL, 0, 800);
+	esc_controller->setPwmCycle(ROTOR_4_CHANNEL, 0, 800);
 }
