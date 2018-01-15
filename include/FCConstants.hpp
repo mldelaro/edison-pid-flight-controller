@@ -6,6 +6,12 @@
 
 #include "./PinEnum.hpp"
 
+#define ROTOR_1_CHANNEL 15
+#define ROTOR_2_CHANNEL 0
+#define ROTOR_3_CHANNEL 14
+#define ROTOR_4_CHANNEL 1
+
+
 namespace fc_constants {
 
 	/* CALCULATION CONSTANTS */

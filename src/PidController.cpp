@@ -52,10 +52,10 @@ std::string rx_tcp_server; // string read from tcp server's shared memory
 
 PidController::~PidController() {
 
-	esc_controller->setPwmCycle(0, 0, 800);
-	esc_controller->setPwmCycle(1, 0, 800);
-	esc_controller->setPwmCycle(2, 0, 800);
-	esc_controller->setPwmCycle(3, 0, 800);
+	esc_controller->setPwmCycle(ROTOR_1_CHANNEL, 0, 800);
+	esc_controller->setPwmCycle(ROTOR_2_CHANNEL, 0, 800);
+	esc_controller->setPwmCycle(ROTOR_3_CHANNEL, 0, 800);
+	esc_controller->setPwmCycle(ROTOR_4_CHANNEL, 0, 800);
 
 	batteryVoltageAnalogInput->~Aio();
 	batteryVoltageAnalogInput = NULL;
@@ -189,10 +189,10 @@ PidController::PidController(PidConfig* config) {
 	usleep(100);
 
 	esc_controller->setPwmFrequency(300);
-	esc_controller->setPwmCycle(0, 0, 800);
-	esc_controller->setPwmCycle(1, 0, 800);
-	esc_controller->setPwmCycle(2, 0, 800);
-	esc_controller->setPwmCycle(3, 0, 800);
+	esc_controller->setPwmCycle(ROTOR_1_CHANNEL, 0, 800);
+	esc_controller->setPwmCycle(ROTOR_2_CHANNEL, 0, 800);
+	esc_controller->setPwmCycle(ROTOR_3_CHANNEL, 0, 800);
+	esc_controller->setPwmCycle(ROTOR_4_CHANNEL, 0, 800);
 
 	PidControlLogger->logStream << "[DONE] Initialized ESC Controller I2C Device...." << std::endl;
 	std::cout << "[DONE] Initialized ESC Controller I2C Device..." << std::endl;
@@ -361,10 +361,10 @@ void PidController::loop(bool rotorsEnabled) {
 			}
 		}
 
-		esc_controller->setPwmCycle(0, 0, pidRunningThrottle[0]);
-		esc_controller->setPwmCycle(1, 0, pidRunningThrottle[1]);
-		esc_controller->setPwmCycle(2, 0, pidRunningThrottle[2]);
-		esc_controller->setPwmCycle(3, 0, pidRunningThrottle[3]);
+		esc_controller->setPwmCycle(ROTOR_1_CHANNEL, 0, pidRunningThrottle[0]);
+		esc_controller->setPwmCycle(ROTOR_2_CHANNEL, 0, pidRunningThrottle[1]);
+		esc_controller->setPwmCycle(ROTOR_3_CHANNEL, 0, pidRunningThrottle[2]);
+		esc_controller->setPwmCycle(ROTOR_4_CHANNEL, 0, pidRunningThrottle[3]);
 	}
 
 	loopCounter++;
@@ -685,22 +685,37 @@ void PidController::_TEST_ROTORS() {
 	//esc_controller->setPwmFrequency(300);
 	sleep(1);
 
+	int rotorChannel = 0;
 	for(int i = 0; i < 4; i++) {
-		esc_controller->setPwmCycle(i, 0, 1100);
+		switch(i) {
+		case 0:
+			rotorChannel = ROTOR_1_CHANNEL;
+			break;
+		case 1:
+			rotorChannel = ROTOR_2_CHANNEL;
+			break;
+		case 2:
+			rotorChannel = ROTOR_3_CHANNEL;
+			break;
+		case 3:
+			rotorChannel = ROTOR_4_CHANNEL;
+			break;
+		}
+		esc_controller->setPwmCycle(rotorChannel, 0, 1100);
 		std::cout << "STARTUP_" << i << "..."<< std::endl;
-		esc_controller->setPwmCycle(i, 0, 1100);
+		esc_controller->setPwmCycle(rotorChannel, 0, 1100);
 		status_led->setRGB(false, true, false);
 		sleep(1);
 
-		esc_controller->setPwmCycle(i, 0, 1500);
+		esc_controller->setPwmCycle(rotorChannel, 0, 1500);
 		std::cout << "LOW_THROTTLE_" << i << "..."<< std::endl;
-		esc_controller->setPwmCycle(i, 0, 1500);
+		esc_controller->setPwmCycle(rotorChannel, 0, 1500);
 		status_led->setRGB(false, false, true);
 		sleep(2);
 
-		esc_controller->setPwmCycle(i, 0, 1000);
+		esc_controller->setPwmCycle(rotorChannel, 0, 1000);
 		std::cout << "STOP_" << i << "..."<< std::endl;
-		esc_controller->setPwmCycle(i, 0, 1000);
+		esc_controller->setPwmCycle(rotorChannel, 0, 1000);
 		status_led->setRGB(false, true, true);
 		sleep(1);
 	}
