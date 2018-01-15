@@ -67,8 +67,8 @@ PidController::~PidController() {
 	delete PidControlLogger;
 	delete PidErrorLogger;
 
-	gyro = null;
-	esc_controller = null;
+	gyro = NULL;
+	esc_controller = NULL;
 	CsvLoggerPidOutput = NULL;
 	CsvLoggerGyroRawOutput = NULL;
 	PidControlLogger = NULL;
@@ -155,8 +155,9 @@ PidController::PidController(PidConfig* config) {
 		PidErrorLogger->logStream << "[WARNING] Cannot initialize analog input";
 	}
 
+	try {
 	PidControlLogger->logStream << "Initializing I2C Devices..." << std::endl;
-		mraa::I2c* i2c_controller = new mraa::I2c(0);
+	mraa::I2c* i2c_controller = new mraa::I2c(0);
 
 	mraa::Result setI2cFreqReturnCode = i2c_controller->frequency(mraa::I2cMode::I2C_FAST); // operate in standard 100kHz mode
 	if(setI2cFreqReturnCode != mraa::Result::SUCCESS) {
@@ -195,6 +196,11 @@ PidController::PidController(PidConfig* config) {
 	esc_controller->setPwmCycle(ROTOR_2_CHANNEL, 0, 800);
 	esc_controller->setPwmCycle(ROTOR_3_CHANNEL, 0, 800);
 	esc_controller->setPwmCycle(ROTOR_4_CHANNEL, 0, 800);
+	} catch (const std::exception& e) {
+		std::cout << "[FAILED] Failed to initialize I2C Devices on PID Flight Controller..." << std::endl;
+		std::cout << e.what() << std::endl;
+		std::exit(-1);
+	}
 
 	PidControlLogger->logStream << "[DONE] Initialized ESC Controller I2C Device...." << std::endl;
 	std::cout << "[DONE] Initialized ESC Controller I2C Device..." << std::endl;
