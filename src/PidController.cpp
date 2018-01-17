@@ -52,6 +52,8 @@ std::string rx_tcp_server; // string read from tcp server's shared memory
 
 PidController::~PidController() {
 
+	status_led->setRGB(false, false, false);
+
 	esc_controller->setPwmCycle(ROTOR_1_CHANNEL, 0, 800);
 	esc_controller->setPwmCycle(ROTOR_2_CHANNEL, 0, 800);
 	esc_controller->setPwmCycle(ROTOR_3_CHANNEL, 0, 800);
@@ -199,6 +201,7 @@ PidController::PidController(PidConfig* config) {
 	} catch (const std::exception& e) {
 		std::cout << "[FAILED] Failed to initialize I2C Devices on PID Flight Controller..." << std::endl;
 		std::cout << e.what() << std::endl;
+		std::cout << "Exiting with status (-1)" << std::endl;
 		std::exit(-1);
 	}
 
@@ -338,10 +341,10 @@ void PidController::loop(bool rotorsEnabled) {
 		if(pidRunningBaselineThrottle > pidConfigs->getMaxReceiverOutput()) {
 			pidRunningBaselineThrottle = pidConfigs->getMaxReceiverOutput();
 		}
-		// ROTOR 1 - CCW 			@ front left
+		// ROTOR 1 - CW 			@ front left
 		pidRunningThrottle[0] = pidRunningBaselineThrottle - pidOutput[PITCH] - pidOutput[ROLL] + pidOutput[YAW];
 
-		// ROTOR 2 - CW 	@ front right
+		// ROTOR 2 - CCW 	@ front right
 		pidRunningThrottle[1] = pidRunningBaselineThrottle - pidOutput[PITCH] + pidOutput[ROLL] - pidOutput[YAW];
 
 		// ROTOR 3 - CW 	@ rear left
@@ -440,10 +443,10 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "Pitch PID Ouptut: " << pidOutput[PITCH] << std::endl;
 //			std::cout << "Yaw PID Ouptut: " << pidOutput[YAW] << std::endl;
 
-//			std::cout << "ROTOR 1 Throttle: " << pidRunningThrottle[0] << std::endl;
-//			std::cout << "ROTOR 2 Throttle: " << pidRunningThrottle[1] << std::endl;
-//			std::cout << "ROTOR 3 Throttle: " << pidRunningThrottle[2] << std::endl;
-//			std::cout << "ROTOR 4 Throttle: " << pidRunningThrottle[3] << std::endl;
+			std::cout << "ROTOR 1 Throttle: " << pidRunningThrottle[0] << std::endl;
+			std::cout << "ROTOR 2 Throttle: " << pidRunningThrottle[1] << std::endl;
+			std::cout << "ROTOR 3 Throttle: " << pidRunningThrottle[2] << std::endl;
+			std::cout << "ROTOR 4 Throttle: " << pidRunningThrottle[3] << std::endl;
 
 
 //			pidRunningThrottle[0] = pidRunningBaselineThrottle - pidOutput[PITCH] - pidOutput[ROLL] + pidOutput[YAW];

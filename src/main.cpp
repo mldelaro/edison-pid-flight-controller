@@ -29,6 +29,7 @@ int main()
 {
 	// register SIGINT
 	signal(SIGINT, _SIG_HANDLER_);
+	signal(SIGTERM, _SIG_HANDLER_);
 
 	/* System Check */
 	mraa::Platform platform = mraa::getPlatformType();
