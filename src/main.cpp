@@ -18,7 +18,9 @@ FlightController* flightController = NULL;
 void _SIG_HANDLER_ (int sig) {
 	std::cout << "Interrupt signal received " << sig << std::endl;
 
-	if(flightController != NULL) {
+	if(flightController) {
+		std::cout << "Sending stop to FlightController " << std::endl;
+		flightController->SIG_STOP();
 		delete flightController;
 	}
 

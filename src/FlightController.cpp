@@ -1,14 +1,12 @@
 #include "../include/FlightController.hpp"
-#include "../include/json.hpp" // IMPROVE: Move to header
 
 #define BUFLEN 512  //Max length of buffer
 
-using json = nlohmann::json;
-
 FlightController::FlightController() {
+	statusString = "initializing";
 	pidController = NULL;
 	flightControllerProperties = NULL;
-	bool udpRuntimeFound = false;
+	bool tcpRuntimeFound = false;
 	runningSetPoints[0] = 0;
 	runningSetPoints[1] = 0;
 	runningSetPoints[2] = 0;
@@ -16,25 +14,25 @@ FlightController::FlightController() {
 	directiveString = "standby";
 
 	// Don't run until remote is initialized
-	while(!udpRuntimeFound) {
+	while(!tcpRuntimeFound) {
 		try {
-			sharedMemUdpRX = new boost::interprocess::shared_memory_object(
+			sharedMemTcpRX = new boost::interprocess::shared_memory_object(
 					boost::interprocess::open_only,
-					"shared_mem_udp_RX",
+					"shared_mem_tcp_RX",
 					boost::interprocess::read_write
 			);
-			regionRX = new boost::interprocess::mapped_region(*sharedMemUdpRX, boost::interprocess::read_write);
+			regionRX = new boost::interprocess::mapped_region(*sharedMemTcpRX, boost::interprocess::read_write);
 
-			sharedMemUdpTX = new boost::interprocess::shared_memory_object(
+			sharedMemTcpTX = new boost::interprocess::shared_memory_object(
 					boost::interprocess::open_only,
-					"shared_mem_udp_TX",
+					"shared_mem_tcp_TX",
 					boost::interprocess::read_write
 			);
-			regionTX = new boost::interprocess::mapped_region(*sharedMemUdpTX, boost::interprocess::read_write);
+			regionTX = new boost::interprocess::mapped_region(*sharedMemTcpTX, boost::interprocess::read_write);
 
-			udpRuntimeFound = true;
+			tcpRuntimeFound = true;
 		}  catch(boost::interprocess::interprocess_exception& ex) {
-			std::cout << "Failed to open shared memory for UDP receiver..." << std::endl;
+			std::cout << "Failed to open shared memory for TCP receiver..." << std::endl;
 			sleep(3);
 		}
 	}
@@ -45,7 +43,7 @@ FlightController::FlightController() {
 				"shared_mem_pilot",
 				boost::interprocess::read_write
 		);
-		udpRuntimeFound = true;
+		tcpRuntimeFound = true;
 	}  catch(boost::interprocess::interprocess_exception& ex) {
 		std::cout << "Failed to open shared memory for PID Controller..." << std::endl;
 	}
@@ -56,8 +54,8 @@ FlightController::FlightController() {
 
 FlightController::~FlightController() {
 	delete pidController;
-	delete sharedMemUdpRX;
-	delete sharedMemUdpTX;
+	delete sharedMemTcpRX;
+	delete sharedMemTcpTX;
 	delete runtimePidControllerMemory;
 	delete flightControllerProperties;
 }
@@ -81,27 +79,49 @@ void FlightController::run() {
 	}// end run()
 }
 
+void FlightController::SIG_STOP() {
+	std::cout << "[Flight_Controller] Received stop..." << std::endl;
+	if(pidController) {
+		std::cout << "[Flight_Controller] Stopping PID Controller..." << std::endl;
+		pidController->_STOP();
+	}
+
+	// Write 'STOP' to RX buffer
+	if(regionTX) {
+		std::cout << "[Flight_Controller] Writing stop message to TCP_TX..." << std::endl;
+		std::string STOP_MESSAGE = "{\"status\":\"stopped\"}\n";
+		std::strcpy((char*)regionTX->get_address(), STOP_MESSAGE.c_str());
+	}
+}
+
 /* PRIVATE MEMBER FUNCTIONS */
 char FlightController::_parseEventCharFromRxSharedMemory() {
 	// read event from shared memory
 	std::stringstream rxStream;
 	rxStream.rdbuf()->pubsetbuf((char*)regionRX->get_address(), regionRX->get_size());
 	std::string rxSharedMemory = rxStream.str();
+
 	// parse directive from RX json
-//	std::cout << "Parsing: " << rxSharedMemory << std::endl;
+	// std::cout << "Parsing: " << rxSharedMemory << std::endl;
 	try {
-		json jsonRxUDP = json::parse(rxSharedMemory);
-		string directive = jsonRxUDP.value("command", "S");
-//		std::cout << "Parsed: " << directive << std::endl;
-		return directive[0];
-	} catch(std::exception e) {
+		if(!rxSharedMemory.empty() && rxSharedMemory[0] == '{') {
+			json jsonRxTCP = json::parse(rxSharedMemory);
+			string directive = jsonRxTCP.value("command", "S"); // default to a standby command
+			return directive[0];
+		} else {
+			std::cout << "Waiting for TCP runtime..." << std::endl;
+			sleep(5);
+		}
+	} catch(std::exception* e) {
 		if(!rxSharedMemory.empty()) {
 			std::cout << "Failed to parse " << rxSharedMemory << std::endl;
+			std::cout << e->what() << std::endl;
 			sleep(3);
 		}
 		//strncpy((char*)regionRX->get_address(), "{\"command\":\"S\"}\0", BUFLEN);
 		return 'S';
 	}
+	return 'S';
 }
 
 FlightController::TransitionEvent FlightController::_charToEvent(char rxEvent) {
@@ -209,7 +229,7 @@ void FlightController::_iterateCurrentState() {
 			};
 
 			// copy TX_JSON message into the shared memory
-			strncpy((char*)regionTX->get_address(), jsonTx.dump().c_str(), BUFLEN);
+			_trimJsonToCString(jsonTx, (char*)regionTX->get_address(), BUFLEN);
 
 			pidController->_TEST_ROTORS();
 			currentState = TransitionState::ready;
@@ -248,7 +268,7 @@ void FlightController::_iterateCurrentState() {
 	};
 
 	// copy TX_JSON message into the shared memory
-	strncpy((char*)regionTX->get_address(), jsonTx.dump().c_str(), BUFLEN);
+	_trimJsonToCString(jsonTx, (char*)regionTX->get_address(), BUFLEN);
 }
 
 void FlightController::_updatePidController(char rxEvent) {
@@ -283,4 +303,26 @@ void FlightController::_updatePidController(char rxEvent) {
 			pidController->setRollDPS(0);
 			break;
 	}
+}
+
+void FlightController::_trimJsonToCString(json jsonToTrim, char* destinationBuffer, int buflength) {
+	// copy TX_JSON message into a temporary buffer
+	std::string jsonTxDump = jsonToTrim.dump();
+	char tempBuffer[BUFLEN];
+	strncpy((char*)tempBuffer, jsonTxDump.c_str(), buflength);
+	int i = 0;
+	while(tempBuffer[i] != '}' && i < buflength) {
+		i++;
+	}
+
+	// append delimiter(\n) and string terminator(\0)
+	if(buflength <= (i+1)) {
+		tempBuffer[buflength-2] = '\n';
+		tempBuffer[buflength-1] = '\0';
+	} else {
+		tempBuffer[i+1] = '\n';
+		tempBuffer[i+2] = '\0';
+	}
+
+	strncpy(destinationBuffer, tempBuffer, buflength);
 }

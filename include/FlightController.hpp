@@ -6,6 +6,8 @@
 #include <sstream>	//stringstream
 #include <iostream>	//cout
 
+#include "../include/json.hpp"
+using json = nlohmann::json;
 
 #include "../include/utility/Properties.hpp"
 #include "../include/PidController.hpp"
@@ -17,6 +19,7 @@ public:
 	FlightController();
 	~FlightController();
 	void run();
+	void SIG_STOP();
 
 private:
 	enum TransitionState { init, ready, test, fstart, flight, BAD_STATE};
@@ -39,8 +42,8 @@ private:
 			{TransitionState::flight,	TransitionState::flight,	TransitionState::flight,	TransitionState::flight,	TransitionState::ready,		TransitionState::flight}		// flight
 	};
 
-	boost::interprocess::shared_memory_object* sharedMemUdpRX;
-	boost::interprocess::shared_memory_object* sharedMemUdpTX;
+	boost::interprocess::shared_memory_object* sharedMemTcpRX;
+	boost::interprocess::shared_memory_object* sharedMemTcpTX;
 	boost::interprocess::shared_memory_object* runtimePidControllerMemory;
 	boost::interprocess::mapped_region* regionRX;
 	boost::interprocess::mapped_region* regionTX;
@@ -62,8 +65,7 @@ private:
 	void _updateState(TransitionEvent rxEvent);
 	void _iterateCurrentState();
 	void _updatePidController(char rxEvent);
-
-
+	void _trimJsonToCString(json jsonToTrim, char* destinationBuffer, int buflength);
 
 };
 
