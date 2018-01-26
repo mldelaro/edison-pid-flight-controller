@@ -56,11 +56,10 @@ public:
 	void _STOP();
 
 	/* FOR USE WITH MULTITHREADING */
-	void* p_loop();
-
-	static void*(fcLoopHelper)(void *context) {
-		return ((PidController *) context) -> p_loop();
-	}
+	//void* p_loop();
+	//	static void*(fcLoopHelper)(void *context) {
+	//		return ((PidController *) context) -> p_loop();
+	//	}
 
 private:
 	state currentStatus;

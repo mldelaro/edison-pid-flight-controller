@@ -12,6 +12,22 @@ using json = nlohmann::json;
 #include "../include/utility/Properties.hpp"
 #include "../include/PidController.hpp"
 
+enum TransitionState { init, ready, test, fstart, flight, BAD_STATE };
+enum TransitionRxEvent { rxNeutral, rxTest, rxStart, rxFalse_start, rxStop, rxDirection };
+
+const struct {
+	const std::string Neutral = "neutral";
+	const std::string Test = "test";
+	const std::string Start = "flight";
+	const std::string FalseStart = "false-flight";
+	const std::string Stop = "stop";
+	const std::string Backward = "backward";
+	const std::string Forward = "forward";
+	const std::string Left = "left";
+	const std::string Right = "right";
+	const std::string Up = "up";
+	const std::string Down = "down";
+} DirectiveRxMessage;
 
 class FlightController
 {
@@ -22,16 +38,6 @@ public:
 	void SIG_STOP();
 
 private:
-	enum TransitionState { init, ready, test, fstart, flight, BAD_STATE};
-	enum class TransitionEvent : char {
-							rxNeutral = 'S',
-							rxTest = 'T',
-							rxStart = 'V',
-							rxFalseStart = 'Y',
-							rxStop = 'W',
-							rxDirection = 'X' //translated from up/down/left/right/forward/backward
-						 };
-
 	// nextState = transition[currentState][incomingEvent]
 	const TransitionState transitionTable[5][6] = {
 			// rxNeutral				rxTest						rxStart						rxFalseStart				rxStop						rxDirection
@@ -47,24 +53,23 @@ private:
 	boost::interprocess::shared_memory_object* runtimePidControllerMemory;
 	boost::interprocess::mapped_region* regionRX;
 	boost::interprocess::mapped_region* regionTX;
-	TransitionState currentState;
-	TransitionEvent lastEvent;
+	int currentState;
+	TransitionRxEvent lastEvent;
 
 	Properties* flightControllerProperties;
 	volatile int* channels[4];
-	std::string pilotMemStream;
 	double runningSetPoints[3];
 	double runningBaselineThrottle;
 	PidController* pidController;
 	const char* statusString;
 	const char* directiveString;
 
-	char _parseEventCharFromRxSharedMemory();
-	TransitionEvent _charToEvent(char event);
-	int _eventToIndex(TransitionEvent event);
-	void _updateState(TransitionEvent rxEvent);
+	std::string _parseDirectiveFromRxSharedMemory();
+	TransitionRxEvent _stringToEvent(std::string event);
+	int _eventToIndex(TransitionRxEvent rxEvent);
+	void _updateState(TransitionRxEvent rxEvent);
 	void _iterateCurrentState();
-	void _updatePidController(char rxEvent);
+	void _updatePidController(TransitionRxEvent rxEvent, std::string rxEventString);
 	void _trimJsonToCString(json jsonToTrim, char* destinationBuffer, int buflength);
 
 };

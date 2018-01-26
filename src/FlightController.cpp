@@ -48,8 +48,8 @@ FlightController::FlightController() {
 		std::cout << "Failed to open shared memory for PID Controller..." << std::endl;
 	}
 
-	currentState = FlightController::TransitionState::init;
-	lastEvent = FlightController::TransitionEvent::rxNeutral;
+	currentState = TransitionState::init;
+	lastEvent = TransitionRxEvent::rxNeutral;
 }
 
 FlightController::~FlightController() {
@@ -62,18 +62,19 @@ FlightController::~FlightController() {
 
 void FlightController::run() {
 	// Start driver loop
-	char charNewRxEvent;
+	std::string newRxEventString = "neutral";
+	TransitionRxEvent newRxEvent = TransitionRxEvent::rxNeutral;
 	while(true) {
-		charNewRxEvent = _parseEventCharFromRxSharedMemory();
-		TransitionEvent newRxEvent = _charToEvent(charNewRxEvent);
-		if(lastEvent != newRxEvent) {
+		newRxEventString = _parseDirectiveFromRxSharedMemory();
+		newRxEvent = _stringToEvent(newRxEventString);
+		if(newRxEvent != lastEvent) {
 			// event changed in shared memory; check for valid next state
 			_updateState(newRxEvent);
 		}
 
 		// state is either in flight, or in a false flight
 		if(currentState == TransitionState::flight || currentState == TransitionState::fstart){
-			_updatePidController(charNewRxEvent);
+			_updatePidController(newRxEvent, newRxEventString);
 		}
 		_iterateCurrentState();
 	}// end run()
@@ -95,82 +96,85 @@ void FlightController::SIG_STOP() {
 }
 
 /* PRIVATE MEMBER FUNCTIONS */
-char FlightController::_parseEventCharFromRxSharedMemory() {
+std::string FlightController::_parseDirectiveFromRxSharedMemory() {
 	// read event from shared memory
 	std::stringstream rxStream;
 	rxStream.rdbuf()->pubsetbuf((char*)regionRX->get_address(), regionRX->get_size());
 	std::string rxSharedMemory = rxStream.str();
+	char buffer[BUFLEN];
+	std::memset(buffer, '\0', BUFLEN); // clear buffer
+	strncpy(buffer, (char*)regionRX->get_address() , BUFLEN); //copy RX message to buffer
+	rxStream.str(std::string()); // flush rxStream
 
 	// parse directive from RX json
-	// std::cout << "Parsing: " << rxSharedMemory << std::endl;
 	try {
-		if(!rxSharedMemory.empty() && rxSharedMemory[0] == '{') {
-			json jsonRxTCP = json::parse(rxSharedMemory);
-			string directive = jsonRxTCP.value("command", "S"); // default to a standby command
-			return directive[0];
+		if(buffer[0] == '{') {
+			json jsonRxTCP = json::parse(buffer);
+			std::string directive = jsonRxTCP.value("command", "neutral"); // default to a standby command
+			return directive;
 		} else {
 			std::cout << "Waiting for TCP runtime..." << std::endl;
 			sleep(5);
 		}
-	} catch(std::exception* e) {
-		if(!rxSharedMemory.empty()) {
-			std::cout << "Failed to parse " << rxSharedMemory << std::endl;
-			std::cout << e->what() << std::endl;
-			sleep(3);
-		}
-		//strncpy((char*)regionRX->get_address(), "{\"command\":\"S\"}\0", BUFLEN);
-		return 'S';
+	} catch(json::parse_error& e) {
+		std::cout << "Failed to parse " << buffer << std::endl;
+		std::cout << e.what() << " at position: " << e.byte << std::endl;
+		sleep(3);
+		return "neutral";
+	} catch(std::exception& e) {
+		std::cout << "Failed to parse " << buffer << std::endl;
+		std::cout << e.what() << std::endl;
+		sleep(3);
+		return "neutral";
 	}
-	return 'S';
+	return "neutral";
 }
 
-FlightController::TransitionEvent FlightController::_charToEvent(char rxEvent) {
-	TransitionEvent eventToReturn = TransitionEvent::rxNeutral;
-	switch(rxEvent) {
-		case 'B':
-			eventToReturn = TransitionEvent::rxDirection;
-			break;
-		case 'F':
-			eventToReturn = TransitionEvent::rxDirection;
-			break;
-		case 'L':
-			eventToReturn = TransitionEvent::rxDirection;
-			break;
-		case 'R':
-			eventToReturn = TransitionEvent::rxDirection;
-			break;
-		case 'U':
-			eventToReturn = TransitionEvent::rxDirection;
-			break;
-		case 'D':
-			eventToReturn = TransitionEvent::rxDirection;
-			break;
-		default:
-			eventToReturn = static_cast<TransitionEvent>(rxEvent);
-			break;
+TransitionRxEvent FlightController::_stringToEvent(std::string rxEventString) {
+	TransitionRxEvent eventToReturn = TransitionRxEvent::rxNeutral;
+	if(rxEventString.compare(DirectiveRxMessage.Backward) == 0 ||
+			rxEventString.compare(DirectiveRxMessage.Down) == 0 ||
+			rxEventString.compare(DirectiveRxMessage.Forward) == 0 ||
+			rxEventString.compare(DirectiveRxMessage.Left) == 0 ||
+			rxEventString.compare(DirectiveRxMessage.Right) == 0 ||
+			rxEventString.compare(DirectiveRxMessage.Up) == 0) {
+		return TransitionRxEvent::rxDirection;
+	} else if(rxEventString.compare(DirectiveRxMessage.FalseStart) == 0) {
+		return TransitionRxEvent::rxFalse_start;
+	} else if(rxEventString.compare(DirectiveRxMessage.Neutral) == 0) {
+		return TransitionRxEvent::rxNeutral;
+	} else if(rxEventString.compare(DirectiveRxMessage.Start) == 0) {
+		return TransitionRxEvent::rxStart;
+	} else if(rxEventString.compare(DirectiveRxMessage.Stop) == 0) {
+		return TransitionRxEvent::rxStop;
+	} else if(rxEventString.compare(DirectiveRxMessage.Test) == 0) {
+		return TransitionRxEvent::rxTest;
+	} else {
+		std::cout << "Failed to convert string to event... setting to neutral" << std::endl;
+		return TransitionRxEvent::rxNeutral;
 	}
 	return eventToReturn;
 }
 
-int FlightController::_eventToIndex(TransitionEvent event) {
+int FlightController::_eventToIndex(TransitionRxEvent event) {
 	int indexToReturn = 0;
 	switch(event) {
-			case TransitionEvent::rxNeutral :
+			case TransitionRxEvent::rxNeutral :
 				indexToReturn = 0;
 				break;
-			case TransitionEvent::rxTest:
+			case TransitionRxEvent::rxTest:
 				indexToReturn = 1;
 				break;
-			case TransitionEvent::rxStart:
+			case TransitionRxEvent::rxStart:
 				indexToReturn = 2;
 				break;
-			case TransitionEvent::rxFalseStart:
+			case TransitionRxEvent::rxFalse_start:
 				indexToReturn = 3;
 				break;
-			case TransitionEvent::rxStop:
+			case TransitionRxEvent::rxStop:
 				indexToReturn = 4;
 				break;
-			case TransitionEvent::rxDirection:
+			case TransitionRxEvent::rxDirection:
 				indexToReturn = 5;
 				break;
 			default:
@@ -181,8 +185,8 @@ int FlightController::_eventToIndex(TransitionEvent event) {
 }
 
 
-void FlightController::_updateState(TransitionEvent rxEvent) {
-	TransitionState newState = currentState;
+void FlightController::_updateState(TransitionRxEvent rxEvent) {
+	int newState = currentState;
 	newState = transitionTable[currentState][_eventToIndex(rxEvent)];
 	currentState = newState;
 }
@@ -194,7 +198,6 @@ void FlightController::_iterateCurrentState() {
 			{
 				statusString = "initializing";
 				std::cout << "==== INIT ====" << std::endl;
-				pilotMemStream = "S";
 				Properties* pidConfigProperties = new Properties("/home/root/flight-controller/flight-controller.properties");
 				PidConfig* pidConfig = new PidConfig(pidConfigProperties);
 				pidController = new PidController(pidConfig);
@@ -212,24 +215,31 @@ void FlightController::_iterateCurrentState() {
 		case TransitionState::test :
 		{
 			statusString = "testing";
-			directiveString = "start test";
+			directiveString = "test";
 			std::cout << "==== TEST ====" << std::endl;
 
 			// Test is a blocking thread...
 			// Write updated status before starting rotor test
-			json jsonTx = {
-				{"status", statusString},
-				{"directive", directiveString},
-				{"gyroX", pidController->getNormalizedGyroX()},
-				{"gyroY", pidController->getNormalizedGyroY()},
-				{"gyroZ", pidController->getNormalizedGyroZ()},
-				{"accX", pidController->getAccelerationX()},
-				{"accY", pidController->getAccelerationY()},
-				{"accZ", pidController->getAccelerationZ()}
-			};
-
-			// copy TX_JSON message into the shared memory
-			_trimJsonToCString(jsonTx, (char*)regionTX->get_address(), BUFLEN);
+			try {
+				json jsonTx = {
+					{"status", statusString},
+					{"directive", directiveString},
+					{"gyroX", pidController->getNormalizedGyroX()},
+					{"gyroY", pidController->getNormalizedGyroY()},
+					{"gyroZ", pidController->getNormalizedGyroZ()},
+					{"accX", pidController->getAccelerationX()},
+					{"accY", pidController->getAccelerationY()},
+					{"accZ", pidController->getAccelerationZ()}
+				};
+				_trimJsonToCString(jsonTx, (char*)regionTX->get_address(), BUFLEN);
+			} catch (std::exception* e) {
+				std::cout << "Failed to build TX Message: " << e->what();
+				json jsonTx = {
+					{"status", "testing"},
+					{"directive", "N/A"}
+				};
+				_trimJsonToCString(jsonTx, (char*)regionTX->get_address(), BUFLEN);
+			}
 
 			pidController->_TEST_ROTORS();
 			currentState = TransitionState::ready;
@@ -255,54 +265,52 @@ void FlightController::_iterateCurrentState() {
 				break;
 			}
 	}
-
-	json jsonTx = {
-		{"status", statusString},
-		{"directive", directiveString},
-		{"gyroX", pidController->getNormalizedGyroX()},
-		{"gyroY", pidController->getNormalizedGyroY()},
-		{"gyroZ", pidController->getNormalizedGyroZ()},
-		{"accX", pidController->getAccelerationX()},
-		{"accY", pidController->getAccelerationY()},
-		{"accZ", pidController->getAccelerationZ()}
-	};
-
-	// copy TX_JSON message into the shared memory
-	_trimJsonToCString(jsonTx, (char*)regionTX->get_address(), BUFLEN);
+	try {
+		json jsonTx = {
+			{"status", statusString},
+			{"directive", directiveString},
+			{"gyroX", pidController->getNormalizedGyroX()},
+			{"gyroY", pidController->getNormalizedGyroY()},
+			{"gyroZ", pidController->getNormalizedGyroZ()},
+			{"accX", pidController->getAccelerationX()},
+			{"accY", pidController->getAccelerationY()},
+			{"accZ", pidController->getAccelerationZ()}
+		};
+		_trimJsonToCString(jsonTx, (char*)regionTX->get_address(), BUFLEN);
+	} catch (std::exception* e) {
+		std::cout << "Failed to build TX Message: " << e->what();
+		json jsonTx = {
+			{"status", "N/A"},
+			{"directive", "N/A"}
+		};
+		_trimJsonToCString(jsonTx, (char*)regionTX->get_address(), BUFLEN);
+	}
 }
 
-void FlightController::_updatePidController(char rxEvent) {
-	switch(rxEvent) {
-		case 'B':
+void FlightController::_updatePidController(TransitionRxEvent rxEvent, std::string rxEventString) {
+		if(rxEventString.compare(DirectiveRxMessage.Backward) == 0) {
 			directiveString = "backward";
 			pidController->setPitchDPS(120);
-			break;
-		case 'F':
+		} else if(rxEventString.compare(DirectiveRxMessage.Forward) == 0) {
 			directiveString = "forward";
 			pidController->setPitchDPS(-120);
-			break;
-		case 'L':
+		} else if(rxEventString.compare(DirectiveRxMessage.Left) == 0) {
 			directiveString = "left";
 			pidController->setRollDPS(-120);
-			break;
-		case 'R':
+		} else if(rxEventString.compare(DirectiveRxMessage.Right) == 0) {
 			directiveString = "right";
 			pidController->setRollDPS(120);
-			break;
-		case 'U':
+		} else if(rxEventString.compare(DirectiveRxMessage.Up) == 0) {
 			directiveString = "up";
 			pidController->incrementBaselineThrottle(0.05);
-			break;
-		case 'D':
+		} else if(rxEventString.compare(DirectiveRxMessage.Down) == 0) {
 			directiveString = "down";
-			pidController->incrementBaselineThrottle(-0.05);
-			break;
-		case 'S':
+			pidController->setPitchDPS(-0.05);
+		} else if(rxEventString.compare(DirectiveRxMessage.Neutral) == 0) {
 			directiveString = "standby";
 			pidController->setPitchDPS(0);
 			pidController->setRollDPS(0);
-			break;
-	}
+		}
 }
 
 void FlightController::_trimJsonToCString(json jsonToTrim, char* destinationBuffer, int buflength) {

@@ -48,7 +48,6 @@ std::mutex mutex_pilot_mem;
 boost::interprocess::shared_memory_object* shared_mem_tcp_receiver;
 //boost::interprocess::mapped_region* region_tcp_receiver;
 std::stringstream fcReceiver;
-std::string rx_tcp_server; // string read from tcp server's shared memory
 
 PidController::~PidController() {
 
@@ -571,125 +570,125 @@ void PidController::calculatePidController() {
 	}
 }
 
-void* PidController::p_loop() {
-	boost::interprocess::shared_memory_object shared_mem_pilot(
-			boost::interprocess::open_only,
-			"shared_mem_pilot",
-			boost::interprocess::read_write
-	);
-	boost::interprocess::mapped_region region(shared_mem_pilot, boost::interprocess::read_write);
-	std::stringstream stream;
-	Properties* fcProperties = new Properties("/home/root/flight-controller/flight-controller.properties");
-	pidConfigs = new PidConfig(fcProperties);
-
-	PidController* flightController = new PidController(pidConfigs);
-	flightController->setup();
-
-	bool didStartFlight = false;
-	bool enabledRotors = false;
-
-	while(true) {
-		stream.rdbuf()->pubsetbuf((char*)region.get_address(), region.get_size());
-		std::string rx_host = stream.str();
-
-		if(rx_host.c_str()[0] != '\0') {
-			std::memset(region.get_address(), '\0', region.get_size());
-
-			if(strncmp(rx_host.c_str(), "T", 1) == 0) {
-				std::cout << "Entering testing mode...\n";
-				status_led->setRGB(false, false, true);
-				flightController->_TEST_ROTORS();
-				didStartFlight = false;
-			} else if(strncmp(rx_host.c_str(), "V", 1) == 0) {
-				std::cout << "STARTING FLIGHT CONTROLLER...\n";
-				flightController->_STOP();
-				status_led->setRGB(false, false, true);
-				flightController->iterativeLoop(true);
-				enabledRotors = true;
-				didStartFlight = true;
-			} else if(strncmp(rx_host.c_str(), "Y", 1) == 0) {
-				std::cout << "[FALSE]STARTING FLIGHT CONTROLLER...\n";
-				flightController->_STOP();
-				status_led->setRGB(false, false, true);
-				flightController->iterativeLoop(false);
-				enabledRotors = false;
-				didStartFlight = true;
-			} else if(strncmp(rx_host.c_str(), "W", 1) == 0) {
-				std::cout << "STOPPING FLIGHT CONTROLLER...\n";
-				status_led->setRGB(false, true, true);
-				flightController->_STOP();
-				didStartFlight = false;
-				enabledRotors = false;
-			} else if(strncmp(rx_host.c_str(), "S", 1) == 0) {
-				if(didStartFlight) {
-					flightController->iterativeLoop(enabledRotors);
-				} else {
-					usleep(500000);
-				}
-			} /*else if(strncmp(rx_host.c_str(), "F", 1) == 0) {
-				//TODO: go forward
-				if(didStartFlight) {
-					flightController->iterativeLoop(enabledRotors);
-				} else {
-					usleep(250000);
-				}
-			} else if(strncmp(rx_host.c_str(), "B", 1) == 0) {
-				//TODO: go backward
-				if(didStartFlight) {
-					flightController->iterativeLoop(enabledRotors);
-				} else {
-					usleep(250000);
-				}
-			} else if(strncmp(rx_host.c_str(), "L", 1) == 0) {
-				//TODO: go Left
-				if(didStartFlight) {
-					flightController->iterativeLoop(enabledRotors);
-				} else {
-					usleep(250000);
-				}
-			} else if(strncmp(rx_host.c_str(), "R", 1) == 0) {
-				//TODO: go Right
-				if(didStartFlight) {
-					flightController->iterativeLoop(enabledRotors);
-				} else {
-					usleep(250000);
-				}
-			} else if(strncmp(rx_host.c_str(), "U", 1) == 0) {
-				//TODO: go up
-				if(didStartFlight) {
-					if(pidRunningBaselineThrottle < 1900) {
-						pidRunningBaselineThrottle += 2;
-					}
-					flightController->iterativeLoop(enabledRotors);
-				} else {
-					usleep(250000);
-				}
-			} else if(strncmp(rx_host.c_str(), "D", 1) == 0) {
-				//TODO: go down
-				if(didStartFlight) {
-					if(pidRunningBaselineThrottle > 1400) {
-						pidRunningBaselineThrottle -= 5;
-					}
-					flightController->iterativeLoop(enabledRotors);
-				} else {
-					usleep(250000);
-				}
-			} else {
-				std::cout << "Failed command: " << rx_host << " of length " << rx_host.length() << std::endl;
-				sleep(3);
-			}*/
-			stream.str("");
-			rx_host.clear();
-		} else {
-			if(didStartFlight) {
-				flightController->iterativeLoop(enabledRotors);
-			} else {
-				usleep(500000);
-			}
-		}
-	}
-	return NULL;
-}
+//void* PidController::p_loop() {
+//	boost::interprocess::shared_memory_object shared_mem_pilot(
+//			boost::interprocess::open_only,
+//			"shared_mem_pilot",
+//			boost::interprocess::read_write
+//	);
+//	boost::interprocess::mapped_region region(shared_mem_pilot, boost::interprocess::read_write);
+//	std::stringstream stream;
+//	Properties* fcProperties = new Properties("/home/root/flight-controller/flight-controller.properties");
+//	pidConfigs = new PidConfig(fcProperties);
+//
+//	PidController* flightController = new PidController(pidConfigs);
+//	flightController->setup();
+//
+//	bool didStartFlight = false;
+//	bool enabledRotors = false;
+//
+//	while(true) {
+//		stream.rdbuf()->pubsetbuf((char*)region.get_address(), region.get_size());
+//		std::string rx_host = stream.str();
+//
+//		if(rx_host.c_str()[0] != '\0') {
+//			std::memset(region.get_address(), '\0', region.get_size());
+//
+//			if(strncmp(rx_host.c_str(), "T", 1) == 0) {
+//				std::cout << "Entering testing mode...\n";
+//				status_led->setRGB(false, false, true);
+//				flightController->_TEST_ROTORS();
+//				didStartFlight = false;
+//			} else if(strncmp(rx_host.c_str(), "V", 1) == 0) {
+//				std::cout << "STARTING FLIGHT CONTROLLER...\n";
+//				flightController->_STOP();
+//				status_led->setRGB(false, false, true);
+//				flightController->iterativeLoop(true);
+//				enabledRotors = true;
+//				didStartFlight = true;
+//			} else if(strncmp(rx_host.c_str(), "Y", 1) == 0) {
+//				std::cout << "[FALSE]STARTING FLIGHT CONTROLLER...\n";
+//				flightController->_STOP();
+//				status_led->setRGB(false, false, true);
+//				flightController->iterativeLoop(false);
+//				enabledRotors = false;
+//				didStartFlight = true;
+//			} else if(strncmp(rx_host.c_str(), "W", 1) == 0) {
+//				std::cout << "STOPPING FLIGHT CONTROLLER...\n";
+//				status_led->setRGB(false, true, true);
+//				flightController->_STOP();
+//				didStartFlight = false;
+//				enabledRotors = false;
+//			} else if(strncmp(rx_host.c_str(), "S", 1) == 0) {
+//				if(didStartFlight) {
+//					flightController->iterativeLoop(enabledRotors);
+//				} else {
+//					usleep(500000);
+//				}
+//			} /*else if(strncmp(rx_host.c_str(), "F", 1) == 0) {
+//				//TODO: go forward
+//				if(didStartFlight) {
+//					flightController->iterativeLoop(enabledRotors);
+//				} else {
+//					usleep(250000);
+//				}
+//			} else if(strncmp(rx_host.c_str(), "B", 1) == 0) {
+//				//TODO: go backward
+//				if(didStartFlight) {
+//					flightController->iterativeLoop(enabledRotors);
+//				} else {
+//					usleep(250000);
+//				}
+//			} else if(strncmp(rx_host.c_str(), "L", 1) == 0) {
+//				//TODO: go Left
+//				if(didStartFlight) {
+//					flightController->iterativeLoop(enabledRotors);
+//				} else {
+//					usleep(250000);
+//				}
+//			} else if(strncmp(rx_host.c_str(), "R", 1) == 0) {
+//				//TODO: go Right
+//				if(didStartFlight) {
+//					flightController->iterativeLoop(enabledRotors);
+//				} else {
+//					usleep(250000);
+//				}
+//			} else if(strncmp(rx_host.c_str(), "U", 1) == 0) {
+//				//TODO: go up
+//				if(didStartFlight) {
+//					if(pidRunningBaselineThrottle < 1900) {
+//						pidRunningBaselineThrottle += 2;
+//					}
+//					flightController->iterativeLoop(enabledRotors);
+//				} else {
+//					usleep(250000);
+//				}
+//			} else if(strncmp(rx_host.c_str(), "D", 1) == 0) {
+//				//TODO: go down
+//				if(didStartFlight) {
+//					if(pidRunningBaselineThrottle > 1400) {
+//						pidRunningBaselineThrottle -= 5;
+//					}
+//					flightController->iterativeLoop(enabledRotors);
+//				} else {
+//					usleep(250000);
+//				}
+//			} else {
+//				std::cout << "Failed command: " << rx_host << " of length " << rx_host.length() << std::endl;
+//				sleep(3);
+//			}*/
+//			stream.str("");
+//			rx_host.clear();
+//		} else {
+//			if(didStartFlight) {
+//				flightController->iterativeLoop(enabledRotors);
+//			} else {
+//				usleep(500000);
+//			}
+//		}
+//	}
+//	return NULL;
+//}
 
 void PidController::_TEST_ROTORS() {
 	std::cout << "RUNNING TEST"<< std::endl;
