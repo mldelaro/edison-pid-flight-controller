@@ -199,6 +199,7 @@ PidController::PidController(PidConfig* config) {
 	esc_controller->setPwmCycle(ROTOR_4_CHANNEL, 0, 800);
 	} catch (const std::exception& e) {
 		std::cout << "[FAILED] Failed to initialize I2C Devices on PID Flight Controller..." << std::endl;
+		std::cout << "Please ensure that the on-board I2C devices are properly connected and powered." << std::endl;
 		std::cout << e.what() << std::endl;
 		std::cout << "Exiting with status (-1)" << std::endl;
 		std::exit(-1);
@@ -298,8 +299,8 @@ void PidController::loop(bool rotorsEnabled) {
 	}
 
 	// Trim Acc calibration [TODO]
-	//accAngleMeasuredFromNormalG[PITCH] -= 0.7;
-	//accAngleMeasuredFromNormalG[ROLL] -= 1.1;
+	accAngleMeasuredFromNormalG[PITCH] -= 0.02756;
+	accAngleMeasuredFromNormalG[ROLL] -= -0.012183;
 
 
 	// Drift compensation

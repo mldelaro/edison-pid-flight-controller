@@ -1,0 +1,6 @@
+This file describes runtime parameters that need to be adjusted:
+
+AWS Access Key ID [None]:  ###
+AWS Secret Access Key [None]: ###
+Default region name [None]: us-west-2
+Default output format [None]: json
