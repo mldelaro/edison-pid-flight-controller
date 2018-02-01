@@ -25,7 +25,6 @@ double pidOutput[3];
 
 double pidRunningBaselineThrottle;
 double pidRunningThrottle[4];
-
 double levelAdjust[3];		// angle correction
 
 double remainingLoopTimeout;
@@ -298,9 +297,9 @@ void PidController::loop(bool rotorsEnabled) {
 		accAngleMeasuredFromNormalG[PITCH] = asin((double)gyro->getAccY_G()/accVector) * fc_constants::RATIO_RADIAN_TO_DEGREE;
 	}
 
-	// Trim Acc calibration [TODO]
-	accAngleMeasuredFromNormalG[PITCH] -= 0.02756;
-	accAngleMeasuredFromNormalG[ROLL] -= -0.012183;
+	// Trim Acc calibration
+	accAngleMeasuredFromNormalG[PITCH] += 2.3;
+	accAngleMeasuredFromNormalG[ROLL] += 0.3;
 
 
 	// Drift compensation
@@ -443,10 +442,10 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "Pitch PID Ouptut: " << pidOutput[PITCH] << std::endl;
 //			std::cout << "Yaw PID Ouptut: " << pidOutput[YAW] << std::endl;
 
-			std::cout << "ROTOR 1 Throttle: " << pidRunningThrottle[0] << std::endl;
-			std::cout << "ROTOR 2 Throttle: " << pidRunningThrottle[1] << std::endl;
-			std::cout << "ROTOR 3 Throttle: " << pidRunningThrottle[2] << std::endl;
-			std::cout << "ROTOR 4 Throttle: " << pidRunningThrottle[3] << std::endl;
+//			std::cout << "ROTOR 1 Throttle: " << pidRunningThrottle[0] << std::endl;
+//			std::cout << "ROTOR 2 Throttle: " << pidRunningThrottle[1] << std::endl;
+//			std::cout << "ROTOR 3 Throttle: " << pidRunningThrottle[2] << std::endl;
+//			std::cout << "ROTOR 4 Throttle: " << pidRunningThrottle[3] << std::endl;
 
 
 //			pidRunningThrottle[0] = pidRunningBaselineThrottle - pidOutput[PITCH] - pidOutput[ROLL] + pidOutput[YAW];
