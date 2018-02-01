@@ -11,12 +11,13 @@ do
 done
 }
 
-
+PERSISTANT_FILE_LIST=~/runtime/aws-module/tracked-files.txt
 FILE_LIST=/tmp/flight-controller/s3/file-list
 STAGED_FILE_LIST=/tmp/flight-controller/s3/file-list-staging
 SYNC_DIR=$(realpath $1)
 S3_BASE_DIR=$2
 LOCAL_BASE_DIR=$SYNC_DIR
+
 echo "Monitoring directory [${SYNC_DIR}] for changes"
 echo "Copying to S3 Base Directory [${S3_BASE_DIR}]"
 echo "Working from Local Directory [${LOCAL_BASE_DIR}]"
@@ -34,8 +35,14 @@ else
         if [ ! -d "/tmp/flight-controller/s3" ]; then
                 mkdir /tmp/flight-controller/s3
         fi
-        mkdir /tmp/flight-controller/s3
-        ls -d $(find ${SYNC_DIR}) | grep '^-' > $FILE_LIST
+        if [ -e ${PERSISTANT_FILE_LIST} ]; then
+                echo "Found record of staged files ${PERSISTANT_FILE_LIST}"
+                cp $PERSISTANT_FILE_LIST $FILE_LIST
+        else
+                echo "Creating persistant record of staged files..."
+                ls -d $(find ${SYNC_DIR}) | grep '^-' > $FILE_LIST
+        fi
+
 fi
 
 if [ -e $STAGED_FILE_LIST ]; then
@@ -51,8 +58,8 @@ echo "======================"
 # Search directory for all files recursively and store them in STAGED FILES LIST
 indexFilesForSyncDirectory
 tmp_diff=$(diff $FILE_LIST $STAGED_FILE_LIST)
-echo "DIFF:"
-echo $tmp_diff
+#echo "DIFF:"
+#echo $tmp_diff
 
 # Strip diff to just the file name
 staged_files=$(echo $tmp_diff | sed 's/.*@@ //')
@@ -77,12 +84,14 @@ then
                               echo "DEL ${staged_file/-/$S3_BASE_DIR}"
 
                               # Remove line from FILE_LIST
-                              #tes=${staged_file//\//\\/} #escape slashes
-                              tes2=${staged_file:2:${#staged_file}}
+                              tes=${staged_file//\//\\/} #escape slashes
+                              tes2=${tes:3:${#staged_file}}
                               sed -i "/$tes2/d" $FILE_LIST
                         #fi
                 fi
         done
+        echo "Upload succeeded, updating persistant storage..."
+        cp $FILE_LIST $PERSISTANT_FILE_LIST
 echo "Finished updating S3"
 fi
 
