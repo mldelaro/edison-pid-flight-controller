@@ -15,7 +15,7 @@ PERSISTANT_FILE_LIST=~/runtime/aws-module/tracked-files.txt
 FILE_LIST=/tmp/flight-controller/s3/file-list
 STAGED_FILE_LIST=/tmp/flight-controller/s3/file-list-staging
 SYNC_DIR=$(realpath $1)
-S3_BASE_DIR=$2
+S3_BASE_DIR=s3://mldelarosa-thesis/edison-quadcopter
 LOCAL_BASE_DIR=$SYNC_DIR
 
 echo "Monitoring directory [${SYNC_DIR}] for changes"
@@ -73,20 +73,24 @@ then
         do
                 if [[ ${staged_file:0:1} == "+" ]]; then #Diff shows a new file being added
                         if [ -f ${staged_file/+/} ]; then #File to be added is not a directory and exists
-                                echo "ADD ${staged_file/+/$S3_BASE_DIR}"
-
+                                staged_file_path=${staged_file/+/}
+                                echo "ADD $staged_file_path to ${staged_file_path/$SYNC_DIR/$S3_BASE_DIR}"
+                                aws s3 cp $staged_file_path ${staged_file_path/$SYNC_DIR/$S3_BASE_DIR}
                                 # Add line to FILE_LIST
                                 echo ${staged_file/+/} >> $FILE_LIST
                         fi
                 fi
+
                 if [[ ${staged_file:0:1} == "-" ]]; then
                         #if [ -f ${staged_file/-/} ]; then #File to be removed is not a directory and exists
-                              echo "DEL ${staged_file/-/$S3_BASE_DIR}"
+                                staged_file_path=${staged_file/-/}
+                                echo "DEL $staged_file_path from ${staged_file_path/$SYNC_DIR/$S3_BASE_DIR}"
+                                aws s3 rm ${staged_file_path/$SYNC_DIR/$S3_BASE_DIR}
 
-                              # Remove line from FILE_LIST
-                              tes=${staged_file//\//\\/} #escape slashes
-                              tes2=${tes:3:${#staged_file}}
-                              sed -i "/$tes2/d" $FILE_LIST
+                                # Remove line from FILE_LIST
+                                tes=${staged_file//\//\\/} #escape slashes
+                                tes2=${tes:3:${#staged_file}}
+                                sed -i "/$tes2/d" $FILE_LIST
                         #fi
                 fi
         done
@@ -103,3 +107,4 @@ echo "DONE"
 #               echo "${file/$LOCAL_BASE_DIR/$S3_BASE_DIR}"
 #       fi
 #done
+root@edison:~/runtime/aws-module/scripts#
