@@ -2,7 +2,6 @@
 
 bool enable_gyroLog = true;
 
-double gyro_sensorOffset[3];		// gyro callibration
 double gyro_sensorNormalized[3];	// callibrated gyro sensor input
 double gyro_sensorPidInput[3];		// error rate detection from gyro as input to PID
 
@@ -12,8 +11,6 @@ float angleTraveled[2];				// traveled degrees
 
 double accVector;
 float accAngleMeasuredFromNormalG[3];
-
-float autoLevelSelfAdjust[2];
 
 int batteryVoltage;
 
@@ -241,10 +238,6 @@ void PidController::setup() {
 
 	status_led->setRGB(false, true, false);
 
-	gyro_sensorOffset[ROLL] /= fc_constants::GYRO_SAMPLE_COUNT;
-	gyro_sensorOffset[PITCH] /= fc_constants::GYRO_SAMPLE_COUNT;
-	gyro_sensorOffset[YAW] /= fc_constants::GYRO_SAMPLE_COUNT;
-
 	PidControlLogger->logStream << "Finished Gyro Callibration..." << std::endl;
 	currentStatus = START_MOTORS;
 
@@ -298,16 +291,13 @@ void PidController::loop(bool rotorsEnabled) {
 	}
 
 	// Trim Acc calibration
-	accAngleMeasuredFromNormalG[PITCH] += 2.3;
-	accAngleMeasuredFromNormalG[ROLL] += 0.3;
+	accAngleMeasuredFromNormalG[PITCH] += 1.15;
+	accAngleMeasuredFromNormalG[ROLL] -= 0.42;
 
 
 	// Drift compensation
-	angleTraveled[PITCH] = angleTraveled[PITCH]*0.9996 + accAngleMeasuredFromNormalG[PITCH] * 0.0004;
-	angleTraveled[ROLL] = angleTraveled[ROLL]*0.9996 + accAngleMeasuredFromNormalG[ROLL] * 0.0004;
-
-	autoLevelSelfAdjust[PITCH] = angleTraveled[PITCH] * 15;
-	autoLevelSelfAdjust[ROLL] = angleTraveled[ROLL] * 15;
+	angleTraveled[PITCH] = angleTraveled[PITCH]*0.9 + accAngleMeasuredFromNormalG[PITCH] * 0.1;
+	angleTraveled[ROLL] = angleTraveled[ROLL]*0.9 + accAngleMeasuredFromNormalG[ROLL] * 0.1;
 
 	/* Start takeoff */
 	if(currentStatus == START_MOTORS) {
@@ -330,9 +320,6 @@ void PidController::loop(bool rotorsEnabled) {
 		currentStatus = RUNNING;
 	}
 
-//	pidSetPoint[ROLL] -= autoLevelSelfAdjust[ROLL];
-//	pidSetPoint[PITCH] -= autoLevelSelfAdjust[ROLL];
-
 	calculatePidController();
 
 	if(currentStatus == RUNNING) {
@@ -340,16 +327,16 @@ void PidController::loop(bool rotorsEnabled) {
 		if(pidRunningBaselineThrottle > pidConfigs->getMaxReceiverOutput()) {
 			pidRunningBaselineThrottle = pidConfigs->getMaxReceiverOutput();
 		}
-		// ROTOR 1 - CW 			@ front left
+		// ROTOR 1 - CW 	@ front left
 		pidRunningThrottle[0] = pidRunningBaselineThrottle - pidOutput[PITCH] - pidOutput[ROLL] + pidOutput[YAW];
 
 		// ROTOR 2 - CCW 	@ front right
 		pidRunningThrottle[1] = pidRunningBaselineThrottle - pidOutput[PITCH] + pidOutput[ROLL] - pidOutput[YAW];
 
-		// ROTOR 3 - CW 	@ rear left
+		// ROTOR 3 - CCW 	@ rear left
 		pidRunningThrottle[2] = pidRunningBaselineThrottle + pidOutput[PITCH] - pidOutput[ROLL] - pidOutput[YAW];
 
-		// ROTOR 4 - CCW			@ rear right
+		// ROTOR 4 - CW		@ rear right
 		pidRunningThrottle[3] = pidRunningBaselineThrottle + pidOutput[PITCH] + pidOutput[ROLL] + pidOutput[YAW];
 
 	} else {
@@ -414,17 +401,18 @@ void PidController::loop(bool rotorsEnabled) {
 
 	if((int)(loopCounter % (1 * pidConfigs->getCorrectionFrequencyHz())) == (int)(0)) {
 		if(!rotorsEnabled) {
-//			std::cout << "TCP Receive: " << rx_tcp_server << std::endl;
-
-//			std::cout << "Running Baseline: " << pidRunningBaselineThrottle << std::endl;
-
-//			std::cout << "Running Time: " << remainingLoopTimeout << std::endl;
-//			std::cout << "Roll Traveled: " << angleTraveled[ROLL] << std::endl;
-//			std::cout << "Pitch Traveled: " << angleTraveled[PITCH] << std::endl;
+			std::cout << "Roll Traveled: " << angleTraveled[ROLL] << std::endl;
+			std::cout << "Pitch Traveled: " << angleTraveled[PITCH] << std::endl;
 
 			// for use with accelerometer callibration [helps trim acc value]
 //			std::cout << "AccPitch: " << accAngleMeasuredFromNormalG[PITCH] << std::endl;
 //			std::cout << "AccRoll: " << accAngleMeasuredFromNormalG[ROLL] << std::endl;
+
+			std::cout << "Rotor 1: " << pidRunningThrottle[0] << std::endl;
+			std::cout << "Rotor 2: " << pidRunningThrottle[1] << std::endl;
+			std::cout << "Rotor 3: " << pidRunningThrottle[2] << std::endl;
+			std::cout << "Rotor 4: " << pidRunningThrottle[3] << std::endl;
+
 
 //			std::cout << "Roll Gyro Output: " << gyro->getRoll_DPS() << std::endl;
 //			std::cout << "Pitch Gyro Ouptut: " << gyro->getPitch_DPS() << std::endl;
@@ -442,31 +430,12 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "Pitch PID Ouptut: " << pidOutput[PITCH] << std::endl;
 //			std::cout << "Yaw PID Ouptut: " << pidOutput[YAW] << std::endl;
 
-//			std::cout << "ROTOR 1 Throttle: " << pidRunningThrottle[0] << std::endl;
-//			std::cout << "ROTOR 2 Throttle: " << pidRunningThrottle[1] << std::endl;
-//			std::cout << "ROTOR 3 Throttle: " << pidRunningThrottle[2] << std::endl;
-//			std::cout << "ROTOR 4 Throttle: " << pidRunningThrottle[3] << std::endl;
-
-
-//			pidRunningThrottle[0] = pidRunningBaselineThrottle - pidOutput[PITCH] - pidOutput[ROLL] + pidOutput[YAW];
-
-//			pidRunningError[i] = gyro_sensorPidInput[i] - pidSetPoint[i];
-//					pidIntegralMemory[i] += pidConfigs->getIntegralGain()[i] * pidRunningError[i];
-//					if(pidIntegralMemory[i] > pidConfigs->getMaxPidOutput()[i]) {
-//						pidIntegralMemory[i] = pidConfigs->getMaxPidOutput()[i];
-//					} else if (pidIntegralMemory[i] < (-1 * pidConfigs->getMaxPidOutput()[i])) {
-//						pidIntegralMemory[i] = (-1 * pidConfigs->getMaxPidOutput()[i]);
-//					}
-//			pidOutput[i] = pidConfigs->getProportionalGain()[i] * pidRunningError[i] + pidIntegralMemory[i] +
-//									pidConfigs->getDerivativeGain()[i] * (pidRunningError[i] - pidLastDifferentialError[i]);
-
-//			std::cout << "PID Auto Level: " << autoLevelSelfAdjust[ROLL] << std::endl;
 //			std::cout << "PID Setpoint: " << pidSetPoint[ROLL] << std::endl;
-
+//
 //			std::cout << "PID Running Error: " << pidRunningError[ROLL] << std::endl;
 //			std::cout << "PID Integral Memory: " << pidIntegralMemory[ROLL] << std::endl;
 //			std::cout << "PID Last Differential Error: " << pidLastDifferentialError[ROLL] << std::endl;
-
+//
 //			std::cout << "PID Output: " << pidOutput[ROLL] << std::endl;
 
 //			std::cout << "PID Baseline: " << pidRunningBaselineThrottle << std::endl;

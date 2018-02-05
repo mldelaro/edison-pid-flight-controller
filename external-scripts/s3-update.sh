@@ -68,6 +68,7 @@ echo $staged_files
 
 if [ $(diff -u <(cat ${FILE_LIST}) <(echo "$indexed_files")) != ""]
 then
+        did_update_s3=true
         echo "Uploading updates to S3..."
         for staged_file in $staged_files
         do
@@ -75,26 +76,45 @@ then
                         if [ -f ${staged_file/+/} ]; then #File to be added is not a directory and exists
                                 staged_file_path=${staged_file/+/}
                                 echo "ADD $staged_file_path to ${staged_file_path/$SYNC_DIR/$S3_BASE_DIR}"
-                                aws s3 cp $staged_file_path ${staged_file_path/$SYNC_DIR/$S3_BASE_DIR}
-                                # Add line to FILE_LIST
-                                echo ${staged_file/+/} >> $FILE_LIST
+                                /usr/local/bin/aws s3 cp $staged_file_path ${staged_file_path/$SYNC_DIR/$S3_BASE_DIR}
+                                if [ $? -eq 0 ]; then
+                                        echo "OK"
+                                        #Add line to FILE_LIST
+                                        echo ${staged_file/+/} >> $FILE_LIST
+                                        echo ${staged_file/+/} >> $PERSISTANT_FILE_LIST
+                                else
+                                        did_update_s3=false;
+                                        echo "Failed to upload ${staged_file_path/$SYNC_DIR/$S3_BASE_DIR}"
+                                fi
                         fi
                 fi
 
                 if [[ ${staged_file:0:1} == "-" ]]; then
+                        # No need for check since file DNE
                         #if [ -f ${staged_file/-/} ]; then #File to be removed is not a directory and exists
                                 staged_file_path=${staged_file/-/}
                                 echo "DEL $staged_file_path from ${staged_file_path/$SYNC_DIR/$S3_BASE_DIR}"
-                                aws s3 rm ${staged_file_path/$SYNC_DIR/$S3_BASE_DIR}
-
-                                # Remove line from FILE_LIST
-                                tes=${staged_file//\//\\/} #escape slashes
-                                tes2=${tes:3:${#staged_file}}
-                                sed -i "/$tes2/d" $FILE_LIST
+                                /usr/local/bin/aws s3 rm ${staged_file_path/$SYNC_DIR/$S3_BASE_DIR}
+                                if [ $? -eq 0 ]; then
+                                        echo "OK"
+                                        #Remove line from FILE_LIST
+                                        temp_escaped_slashes=${staged_file//\//\\/}
+                                        temp_trimmed=${temp_escaped_slashes:3:${#staged_file}}
+                                        sed -i "/$temp_trimmed/d" $FILE_LIST
+                                        sed -i "/$temp_trimeed/d" $PERSISTANT_FILE_LIST
+                                else
+                                        did_update_s3=false;
+                                        echo "Failed to upload ${staged_file_path/$SYNC_DIR/$S3_BASE_DIR}"
+                                fi
                         #fi
                 fi
         done
-        echo "Upload succeeded, updating persistant storage..."
+        if [ "$did_update_s3" = true ]; then
+                echo "Upload succeeded, updating persistant storage..."
+                #cp $FILE_LIST $PERSISTANT_FILE_LIST
+        else
+                echo "Update to S3 FAILED"
+        fi
         cp $FILE_LIST $PERSISTANT_FILE_LIST
 echo "Finished updating S3"
 fi
@@ -107,4 +127,22 @@ echo "DONE"
 #               echo "${file/$LOCAL_BASE_DIR/$S3_BASE_DIR}"
 #       fi
 #done
-root@edison:~/runtime/aws-module/scripts#
+root@edison:~/runtime/aws-module/scripts# login as: root
+root@edison:~/runtime# aw
+-sh: aw: command not found
+root@edison:~/runtime# cd aws-module/
+root@edison:~/runtime/aws-module# ls
+s3  scripts  tracked-files.txt
+root@edison:~/runtime/aws-module# cd scripts/
+root@edison:~/runtime/aws-module/scripts# ls
+cron-driver-s3-sync.sh   s3-dir-sync-driver.sh  s3-dir-sync.sh~
+cron-driver-s3-sync.sh~  s3-dir-sync.sh         setup-s3-env.sh
+root@edison:~/runtime/aws-module/scripts# cat s3-dir-sync-driver.sh
+if ps | grep -v grep | grep FlightController; then
+        exit 0
+elif ps | grep -v grep | grep TestBed_UdpEchoServer; then
+        exit 0
+else
+        /home/root/runtime/aws-module/scripts/s3-dir-sync.sh /home/root/runtime/aws-module/s3/
+        exit 0
+fi
