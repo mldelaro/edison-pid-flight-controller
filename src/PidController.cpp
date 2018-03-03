@@ -115,7 +115,7 @@ PidController::PidController(PidConfig* config) {
 	if(pidConfigs->isCsvPidOutputEnabled()) {
 		const char* gyroCsvColumnLabels[9];
 		//gyroCsvColumnLabels[0] = "time_usec";
-		gyroCsvColumnLabels[0] = "runtime";
+		//gyroCsvColumnLabels[0] = "runtime";
 		gyroCsvColumnLabels[1] = "callibrated_gyro_roll";
 		gyroCsvColumnLabels[2] = "callibrated_gyro_pitch";
 		gyroCsvColumnLabels[3] = "callibrated_yaw";
@@ -294,10 +294,13 @@ void PidController::loop(bool rotorsEnabled) {
 	accAngleMeasuredFromNormalG[PITCH] += 1.15;
 	accAngleMeasuredFromNormalG[ROLL] -= 0.42;
 
-
 	// Drift compensation
-	angleTraveled[PITCH] = angleTraveled[PITCH]*0.9 + accAngleMeasuredFromNormalG[PITCH] * 0.1;
-	angleTraveled[ROLL] = angleTraveled[ROLL]*0.9 + accAngleMeasuredFromNormalG[ROLL] * 0.1;
+	angleTraveled[PITCH] = angleTraveled[PITCH]*0.9996 + accAngleMeasuredFromNormalG[PITCH] * 0.0004;
+	angleTraveled[ROLL] = angleTraveled[ROLL]*0.9996 + accAngleMeasuredFromNormalG[ROLL] * 0.0004;
+
+	levelAdjust[PITCH] = angleTraveled[PITCH]*15;
+	levelAdjust[ROLL] = angleTraveled[ROLL]*15;
+
 
 	/* Start takeoff */
 	if(currentStatus == START_MOTORS) {
@@ -377,7 +380,7 @@ void PidController::loop(bool rotorsEnabled) {
 
 	if(pidConfigs->isCsvPidOutputEnabled()) {
 		CsvLoggerPidOutput->logStream
-			<< pidRunningTime << ","
+			//<< pidRunningTime << ","
 			<< gyro_sensorNormalized[ROLL] << ","
 			<< gyro_sensorNormalized[PITCH] << ","
 			<< gyro_sensorNormalized[YAW] << ","
@@ -477,12 +480,14 @@ void PidController::incrementBaselineThrottle(double value) {
 
 void PidController::setRollDPS(double dps) {
 	pidSetPoint[ROLL] = dps;
-	pidSetPoint[ROLL] /= 3.0;
+	pidSetPoint[ROLL] -= levelAdjust[ROLL];
+//	pidSetPoint[ROLL] /= 3.0;
 }
 
 void PidController::setPitchDPS(double dps) {
 	pidSetPoint[PITCH] = dps;
-	pidSetPoint[PITCH] /= 3.0;
+	pidSetPoint[PITCH] -= levelAdjust[PITCH];
+//	pidSetPoint[PITCH] /= 3.0;
 }
 
 void PidController::setYawDPS(double dps) {
