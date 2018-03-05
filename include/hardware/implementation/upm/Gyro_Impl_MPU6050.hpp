@@ -124,9 +124,9 @@ public:
 			read();
 			usleep(30);
 			mpu6050->getGyroscope(&gyro_x, &gyro_y, &gyro_z);
-			gyro_sensorOffset[0] += -gyro_x;
+			gyro_sensorOffset[0] += gyro_x;
 			gyro_sensorOffset[1] += gyro_y;
-			gyro_sensorOffset[2] += -gyro_z;
+			gyro_sensorOffset[2] += gyro_z;
 			usleep(30);
 		}
 		isCallibrated = true;

@@ -260,15 +260,15 @@ void PidController::loop(bool rotorsEnabled) {
 	gyro_sensorNormalized[YAW] = gyro->getYaw_DPS();
 
 	// Use a complimentary filter on gyro data
-	gyro_sensorPidInput[ROLL] = (gyro_sensorPidInput[ROLL] * 0.8) + (gyro_sensorNormalized[ROLL] * 0.2);
-	gyro_sensorPidInput[PITCH] = (gyro_sensorPidInput[PITCH] * 0.8) + (gyro_sensorNormalized[PITCH] * 0.2);
-	gyro_sensorPidInput[YAW] = (gyro_sensorPidInput[YAW] * 0.8) + (gyro_sensorNormalized[YAW] * 0.2);
+	gyro_sensorPidInput[ROLL] = (gyro_sensorPidInput[ROLL] * 0.994) + (gyro_sensorNormalized[ROLL] * 0.006);
+	gyro_sensorPidInput[PITCH] = (gyro_sensorPidInput[PITCH] * 0.994) + (gyro_sensorNormalized[PITCH] * 0.006);
+	gyro_sensorPidInput[YAW] = (gyro_sensorPidInput[YAW] * 0.994) + (gyro_sensorNormalized[YAW] * 0.006);
 
 	// Calculate Angle Traveled
 	//degreeTraveledPerSample = (double)((double)(1.0) / (double)fc_constants::CORRECTION_FREQUENCY_HZ / (double)fc_constants::GYRO_1DPS_RAW_OUTPUT);
 	//degreeTraveledPerSample *= (double)((double)(loopRunningTime / 10) * (double)(1.0 / fc_constants::CORRECTION_FREQUENCY_HZ));
-	angleTraveled[PITCH] += gyro_sensorNormalized[PITCH] * secondsPerSample;
-	angleTraveled[ROLL] += gyro_sensorNormalized[ROLL] * secondsPerSample;
+	angleTraveled[PITCH] += gyro_sensorNormalized[PITCH] * 0.004;
+	angleTraveled[ROLL] += gyro_sensorNormalized[ROLL] * 0.004;
 
 	// Translate changes in yaw to traveled angles in pitch and roll
 	angleTraveled[PITCH] -= angleTraveled[ROLL] * sin(gyro_sensorNormalized[YAW] * fc_constants::RATIO_DEGREE_TO_RADIAN);
@@ -291,8 +291,8 @@ void PidController::loop(bool rotorsEnabled) {
 	}
 
 	// Trim Acc calibration
-	accAngleMeasuredFromNormalG[PITCH] += 1.15;
-	accAngleMeasuredFromNormalG[ROLL] -= 0.42;
+	accAngleMeasuredFromNormalG[PITCH] -= -4.1;
+	accAngleMeasuredFromNormalG[ROLL] -= 1.0;
 
 	// Drift compensation
 	angleTraveled[PITCH] = angleTraveled[PITCH]*0.9996 + accAngleMeasuredFromNormalG[PITCH] * 0.0004;
@@ -309,8 +309,11 @@ void PidController::loop(bool rotorsEnabled) {
 		pidSetPoint[PITCH] = 0;
 		pidSetPoint[YAW] = 0;
 
-		angleTraveled[PITCH] = accAngleMeasuredFromNormalG[PITCH];
-		angleTraveled[ROLL] = accAngleMeasuredFromNormalG[ROLL];
+//		angleTraveled[PITCH] = accAngleMeasuredFromNormalG[PITCH];
+//		angleTraveled[ROLL] = accAngleMeasuredFromNormalG[ROLL];
+
+		angleTraveled[PITCH] = 0;
+		angleTraveled[ROLL] = 0;
 
 		//Reset PID Controller
 		pidIntegralMemory[0] = 0;
@@ -405,16 +408,18 @@ void PidController::loop(bool rotorsEnabled) {
 	if((int)(loopCounter % (1 * pidConfigs->getCorrectionFrequencyHz())) == (int)(0)) {
 		if(!rotorsEnabled) {
 			std::cout << "Roll Traveled: " << angleTraveled[ROLL] << std::endl;
-			std::cout << "Pitch Traveled: " << angleTraveled[PITCH] << std::endl;
+//			std::cout << "Pitch Traveled: " << angleTraveled[PITCH] << std::endl;
+
+			std::cout << "Normalized Gyro: " << gyro_sensorNormalized[ROLL] << std::endl;
 
 			// for use with accelerometer callibration [helps trim acc value]
 //			std::cout << "AccPitch: " << accAngleMeasuredFromNormalG[PITCH] << std::endl;
 //			std::cout << "AccRoll: " << accAngleMeasuredFromNormalG[ROLL] << std::endl;
 
-			std::cout << "Rotor 1: " << pidRunningThrottle[0] << std::endl;
-			std::cout << "Rotor 2: " << pidRunningThrottle[1] << std::endl;
-			std::cout << "Rotor 3: " << pidRunningThrottle[2] << std::endl;
-			std::cout << "Rotor 4: " << pidRunningThrottle[3] << std::endl;
+//			std::cout << "Rotor 1: " << pidRunningThrottle[0] << std::endl;
+//			std::cout << "Rotor 2: " << pidRunningThrottle[1] << std::endl;
+//			std::cout << "Rotor 3: " << pidRunningThrottle[2] << std::endl;
+//			std::cout << "Rotor 4: " << pidRunningThrottle[3] << std::endl;
 
 
 //			std::cout << "Roll Gyro Output: " << gyro->getRoll_DPS() << std::endl;
@@ -480,13 +485,13 @@ void PidController::incrementBaselineThrottle(double value) {
 
 void PidController::setRollDPS(double dps) {
 	pidSetPoint[ROLL] = dps;
-	pidSetPoint[ROLL] -= levelAdjust[ROLL];
+//	pidSetPoint[ROLL] -= levelAdjust[ROLL];
 //	pidSetPoint[ROLL] /= 3.0;
 }
 
 void PidController::setPitchDPS(double dps) {
 	pidSetPoint[PITCH] = dps;
-	pidSetPoint[PITCH] -= levelAdjust[PITCH];
+//	pidSetPoint[PITCH] -= levelAdjust[PITCH];
 //	pidSetPoint[PITCH] /= 3.0;
 }
 

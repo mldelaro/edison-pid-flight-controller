@@ -2,7 +2,7 @@
 
 /* CALCULATION CONSTANTS */
 const float fc_constants::RATIO_RADIAN_TO_DEGREE = 57.296;
-const float fc_constants::RATIO_DEGREE_TO_RADIAN = 0.000001066; //3.142 / 180
+const float fc_constants::RATIO_DEGREE_TO_RADIAN = 0.017456; //3.142 / 180
 
 /* HARDWARE CONFIGURATIONS*/
 //const int PIN_LED_WARNING = ArduinoBreakout::GPIO_13;
