@@ -57,12 +57,14 @@ private:
 	TransitionRxEvent lastEvent;
 
 	Properties* flightControllerProperties;
+	Properties* vipleMotionProperties;
 	volatile int* channels[4];
 	double runningSetPoints[3];
 	double runningBaselineThrottle;
 	PidController* pidController;
 	const char* statusString;
 	const char* directiveString;
+	vector<std::string> vipleString;
 
 	std::string _parseDirectiveFromRxSharedMemory();
 	TransitionRxEvent _stringToEvent(std::string event);

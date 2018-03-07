@@ -6,12 +6,24 @@ FlightController::FlightController() {
 	statusString = "initializing";
 	pidController = NULL;
 	flightControllerProperties = NULL;
+	vipleMotionProperties = NULL;
 	bool tcpRuntimeFound = false;
 	runningSetPoints[0] = 0;
 	runningSetPoints[1] = 0;
 	runningSetPoints[2] = 0;
 	runningBaselineThrottle = 0;
 	directiveString = "standby";
+
+	vipleString.push_back("neutral");
+	vipleString.push_back("false-flight");
+	vipleString.push_back("stop");
+	vipleString.push_back("forward");
+	vipleString.push_back("left");
+	vipleString.push_back("right");
+	vipleString.push_back("backward");
+	vipleString.push_back("up");
+	vipleString.push_back("down");
+	vipleString.push_back("stop");
 
 	// Don't run until remote is initialized
 	while(!tcpRuntimeFound) {
@@ -58,6 +70,7 @@ FlightController::~FlightController() {
 	delete sharedMemTcpTX;
 	delete runtimePidControllerMemory;
 	delete flightControllerProperties;
+	delete vipleMotionProperties;
 }
 
 void FlightController::run() {
@@ -107,26 +120,55 @@ std::string FlightController::_parseDirectiveFromRxSharedMemory() {
 	rxStream.str(std::string()); // flush rxStream
 
 	// parse directive from RX json
+//	try {
+//		if(buffer[0] == '{') {
+//			json jsonRxTCP = json::parse(buffer);
+//			std::string directive = jsonRxTCP.value("command", "neutral"); // default to a standby command
+//			return directive;
+//		} else {
+//			std::cout << "Waiting for TCP runtime..." << std::endl;
+//			sleep(5);
+//		}
+//	} catch(json::parse_error& e) {
+//		std::cout << "Failed to parse " << buffer << std::endl;
+//		std::cout << e.what() << " at position: " << e.byte << std::endl;
+//		sleep(3);
+//		return "neutral";
+//	} catch(std::exception& e) {
+//		std::cout << "Failed to parse " << buffer << std::endl;
+//		std::cout << e.what() << std::endl;
+//		sleep(3);
+//		return "neutral";
+//	}
+
+
+
+//	std::cout << "parsing directive...";
 	try {
-		if(buffer[0] == '{') {
-			json jsonRxTCP = json::parse(buffer);
-			std::string directive = jsonRxTCP.value("command", "neutral"); // default to a standby command
-			return directive;
-		} else {
-			std::cout << "Waiting for TCP runtime..." << std::endl;
-			sleep(5);
+			if(buffer[0] == '{') {
+				json jsonRxTCP = json::parse(buffer);
+				json rxMotions = jsonRxTCP["motions"]; // default to a standby command
+				json rxMotion = rxMotions[0];
+				int rxMotionId = rxMotion["motionId"];
+				std::string directive = vipleString[rxMotionId];
+//				std::cout << "rxDirective: " << directive;
+				return directive;
+			} else {
+				std::cout << "Waiting for TCP runtime..." << std::endl;
+				sleep(5);
+			}
+		} catch(json::parse_error& e) {
+			std::cout << "Failed to parse " << buffer << std::endl;
+			std::cout << e.what() << " at position: " << e.byte << std::endl;
+			sleep(3);
+			return "neutral";
+		} catch(std::exception& e) {
+			std::cout << "Failed to parse " << buffer << std::endl;
+			std::cout << e.what() << std::endl;
+			sleep(3);
+			return "neutral";
 		}
-	} catch(json::parse_error& e) {
-		std::cout << "Failed to parse " << buffer << std::endl;
-		std::cout << e.what() << " at position: " << e.byte << std::endl;
-		sleep(3);
-		return "neutral";
-	} catch(std::exception& e) {
-		std::cout << "Failed to parse " << buffer << std::endl;
-		std::cout << e.what() << std::endl;
-		sleep(3);
-		return "neutral";
-	}
+//	std::cout << "Reverting to neutral";
 	return "neutral";
 }
 
@@ -290,22 +332,22 @@ void FlightController::_iterateCurrentState() {
 void FlightController::_updatePidController(TransitionRxEvent rxEvent, std::string rxEventString) {
 		if(rxEventString.compare(DirectiveRxMessage.Backward) == 0) {
 			directiveString = "backward";
-			pidController->setPitchDPS(120);
+			pidController->setPitchDPS(20);
 		} else if(rxEventString.compare(DirectiveRxMessage.Forward) == 0) {
 			directiveString = "forward";
-			pidController->setPitchDPS(-120);
+			pidController->setPitchDPS(-20);
 		} else if(rxEventString.compare(DirectiveRxMessage.Left) == 0) {
 			directiveString = "left";
-			pidController->setRollDPS(-120);
+			pidController->setRollDPS(-20);
 		} else if(rxEventString.compare(DirectiveRxMessage.Right) == 0) {
 			directiveString = "right";
-			pidController->setRollDPS(120);
+			pidController->setRollDPS(20);
 		} else if(rxEventString.compare(DirectiveRxMessage.Up) == 0) {
 			directiveString = "up";
-			pidController->incrementBaselineThrottle(0.05);
+			pidController->incrementBaselineThrottle(0.1);
 		} else if(rxEventString.compare(DirectiveRxMessage.Down) == 0) {
 			directiveString = "down";
-			pidController->setPitchDPS(-0.05);
+			pidController->setPitchDPS(-0.1);
 		} else if(rxEventString.compare(DirectiveRxMessage.Neutral) == 0) {
 			directiveString = "standby";
 			pidController->setPitchDPS(0);

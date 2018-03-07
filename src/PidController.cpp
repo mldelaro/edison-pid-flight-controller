@@ -298,8 +298,8 @@ void PidController::loop(bool rotorsEnabled) {
 	angleTraveled[PITCH] = angleTraveled[PITCH]*0.9996 + accAngleMeasuredFromNormalG[PITCH] * 0.0004;
 	angleTraveled[ROLL] = angleTraveled[ROLL]*0.9996 + accAngleMeasuredFromNormalG[ROLL] * 0.0004;
 
-	levelAdjust[PITCH] = angleTraveled[PITCH]*15;
-	levelAdjust[ROLL] = angleTraveled[ROLL]*15;
+	levelAdjust[PITCH] = angleTraveled[PITCH];
+	levelAdjust[ROLL] = angleTraveled[ROLL];
 
 
 	/* Start takeoff */
@@ -407,19 +407,22 @@ void PidController::loop(bool rotorsEnabled) {
 
 	if((int)(loopCounter % (1 * pidConfigs->getCorrectionFrequencyHz())) == (int)(0)) {
 		if(!rotorsEnabled) {
-			std::cout << "Roll Traveled: " << angleTraveled[ROLL] << std::endl;
+//			std::cout << "Roll Traveled: " << angleTraveled[ROLL] << std::endl;
 //			std::cout << "Pitch Traveled: " << angleTraveled[PITCH] << std::endl;
 
-			std::cout << "Normalized Gyro: " << gyro_sensorNormalized[ROLL] << std::endl;
+//			std::cout << "Normalized Gyro: " << gyro_sensorNormalized[ROLL] << std::endl;
+
+//			std::cout << "Level adjust Roll: " << levelAdjust[ROLL] << std::endl;
+//			std::cout << "Level adjust Pitch: " << levelAdjust[PITCH] << std::endl;
 
 			// for use with accelerometer callibration [helps trim acc value]
 //			std::cout << "AccPitch: " << accAngleMeasuredFromNormalG[PITCH] << std::endl;
 //			std::cout << "AccRoll: " << accAngleMeasuredFromNormalG[ROLL] << std::endl;
 
-//			std::cout << "Rotor 1: " << pidRunningThrottle[0] << std::endl;
-//			std::cout << "Rotor 2: " << pidRunningThrottle[1] << std::endl;
-//			std::cout << "Rotor 3: " << pidRunningThrottle[2] << std::endl;
-//			std::cout << "Rotor 4: " << pidRunningThrottle[3] << std::endl;
+			std::cout << "Rotor 1: " << pidRunningThrottle[0] << std::endl;
+			std::cout << "Rotor 2: " << pidRunningThrottle[1] << std::endl;
+			std::cout << "Rotor 3: " << pidRunningThrottle[2] << std::endl;
+			std::cout << "Rotor 4: " << pidRunningThrottle[3] << std::endl;
 
 
 //			std::cout << "Roll Gyro Output: " << gyro->getRoll_DPS() << std::endl;
@@ -485,13 +488,13 @@ void PidController::incrementBaselineThrottle(double value) {
 
 void PidController::setRollDPS(double dps) {
 	pidSetPoint[ROLL] = dps;
-//	pidSetPoint[ROLL] -= levelAdjust[ROLL];
+	pidSetPoint[ROLL] -= levelAdjust[ROLL];
 //	pidSetPoint[ROLL] /= 3.0;
 }
 
 void PidController::setPitchDPS(double dps) {
 	pidSetPoint[PITCH] = dps;
-//	pidSetPoint[PITCH] -= levelAdjust[PITCH];
+	pidSetPoint[PITCH] -= levelAdjust[PITCH];
 //	pidSetPoint[PITCH] /= 3.0;
 }
 
@@ -533,6 +536,9 @@ double PidController::getAccelerationZ() {
 
 void PidController::calculatePidController() {
 	// iterate PID Calculator for roll, pitch, and yaw
+	pidSetPoint[ROLL] -= levelAdjust[ROLL];
+	pidSetPoint[PITCH] -= levelAdjust[PITCH];
+
 	for(int i = 0; i < 3; i++) {
 		pidRunningError[i] = gyro_sensorPidInput[i] - pidSetPoint[i];
 		pidIntegralMemory[i] += pidConfigs->getIntegralGain()[i] * pidRunningError[i];
