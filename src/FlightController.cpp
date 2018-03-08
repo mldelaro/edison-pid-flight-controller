@@ -140,18 +140,14 @@ std::string FlightController::_parseDirectiveFromRxSharedMemory() {
 //		sleep(3);
 //		return "neutral";
 //	}
-
-
-
-//	std::cout << "parsing directive...";
 	try {
 			if(buffer[0] == '{') {
 				json jsonRxTCP = json::parse(buffer);
 				json rxMotions = jsonRxTCP["motions"]; // default to a standby command
 				json rxMotion = rxMotions[0];
 				int rxMotionId = rxMotion["motionId"];
+				rxMotionSpeed = rxMotion["motionSpeed"];
 				std::string directive = vipleString[rxMotionId];
-//				std::cout << "rxDirective: " << directive;
 				return directive;
 			} else {
 				std::cout << "Waiting for TCP runtime..." << std::endl;
@@ -168,7 +164,6 @@ std::string FlightController::_parseDirectiveFromRxSharedMemory() {
 			sleep(3);
 			return "neutral";
 		}
-//	std::cout << "Reverting to neutral";
 	return "neutral";
 }
 
@@ -332,21 +327,56 @@ void FlightController::_iterateCurrentState() {
 void FlightController::_updatePidController(TransitionRxEvent rxEvent, std::string rxEventString) {
 		if(rxEventString.compare(DirectiveRxMessage.Backward) == 0) {
 			directiveString = "backward";
-			pidController->setPitchDPS(20);
+			if(rxMotionSpeed > 20){
+				rxMotionSpeed = 20;
+			} else if(rxMotionSpeed < 1){
+				rxMotionSpeed = 1;
+			}
+//			pidController->setPitchDPS(rxMotionSpeed);
+			pidController->setPitchDPS(1);
 		} else if(rxEventString.compare(DirectiveRxMessage.Forward) == 0) {
 			directiveString = "forward";
-			pidController->setPitchDPS(-20);
+			if(rxMotionSpeed > 20){
+				rxMotionSpeed = 20;
+			} else if(rxMotionSpeed < 1){
+				rxMotionSpeed = 1;
+			}
+			pidController->setPitchDPS(-1);
 		} else if(rxEventString.compare(DirectiveRxMessage.Left) == 0) {
 			directiveString = "left";
-			pidController->setRollDPS(-20);
+			if(rxMotionSpeed > 20){
+				rxMotionSpeed = 20;
+			} else if(rxMotionSpeed < 1){
+				rxMotionSpeed = 1;
+			}
+//			pidController->setRollDPS(-1 * rxMotionSpeed);
+			pidController->setRollDPS(-1);
 		} else if(rxEventString.compare(DirectiveRxMessage.Right) == 0) {
 			directiveString = "right";
-			pidController->setRollDPS(20);
+			if(rxMotionSpeed > 20){
+				rxMotionSpeed = 20;
+			} else if(rxMotionSpeed < 1){
+				rxMotionSpeed = 1;
+			}
+//			pidController->setRollDPS(rxMotionSpeed);
+			pidController->setRollDPS(1);
 		} else if(rxEventString.compare(DirectiveRxMessage.Up) == 0) {
 			directiveString = "up";
+			if(rxMotionSpeed > 0.3){
+				rxMotionSpeed = 0.3;
+			} else if(rxMotionSpeed < 0.01){
+				rxMotionSpeed = 0.01;
+			}
+//			pidController->incrementBaselineThrottle(rxMotionSpeed);
 			pidController->incrementBaselineThrottle(0.1);
 		} else if(rxEventString.compare(DirectiveRxMessage.Down) == 0) {
 			directiveString = "down";
+			if(rxMotionSpeed > 0.3){
+				rxMotionSpeed = 0.3;
+			} else if(rxMotionSpeed < 0.01){
+				rxMotionSpeed = 0.01;
+			}
+//			pidController->setPitchDPS(-1 * rxMotionSpeed);
 			pidController->setPitchDPS(-0.1);
 		} else if(rxEventString.compare(DirectiveRxMessage.Neutral) == 0) {
 			directiveString = "standby";

@@ -271,8 +271,8 @@ void PidController::loop(bool rotorsEnabled) {
 	angleTraveled[ROLL] += gyro_sensorNormalized[ROLL] * 0.004;
 
 	// Translate changes in yaw to traveled angles in pitch and roll
-	angleTraveled[PITCH] -= angleTraveled[ROLL] * sin(gyro_sensorNormalized[YAW] * fc_constants::RATIO_DEGREE_TO_RADIAN);
-	angleTraveled[ROLL] += angleTraveled[PITCH] * sin(gyro_sensorNormalized[YAW] * fc_constants::RATIO_DEGREE_TO_RADIAN);
+	angleTraveled[PITCH] -= angleTraveled[ROLL] * sin(gyro_sensorNormalized[YAW] * (0.004 * fc_constants::RATIO_DEGREE_TO_RADIAN));
+	angleTraveled[ROLL] += angleTraveled[PITCH] * sin(gyro_sensorNormalized[YAW] * (0.004 * fc_constants::RATIO_DEGREE_TO_RADIAN));
 
 	/* Accelerometer angle calculations*/
 	accVector = sqrt(
@@ -291,8 +291,8 @@ void PidController::loop(bool rotorsEnabled) {
 	}
 
 	// Trim Acc calibration
-	accAngleMeasuredFromNormalG[PITCH] -= -4.1;
-	accAngleMeasuredFromNormalG[ROLL] -= 1.0;
+//	accAngleMeasuredFromNormalG[PITCH] -= 4.1;
+//	accAngleMeasuredFromNormalG[ROLL] -= -0.16;
 
 	// Drift compensation
 	angleTraveled[PITCH] = angleTraveled[PITCH]*0.9996 + accAngleMeasuredFromNormalG[PITCH] * 0.0004;
@@ -309,8 +309,8 @@ void PidController::loop(bool rotorsEnabled) {
 		pidSetPoint[PITCH] = 0;
 		pidSetPoint[YAW] = 0;
 
-//		angleTraveled[PITCH] = accAngleMeasuredFromNormalG[PITCH];
-//		angleTraveled[ROLL] = accAngleMeasuredFromNormalG[ROLL];
+		angleTraveled[PITCH] = accAngleMeasuredFromNormalG[PITCH];
+		angleTraveled[ROLL] = accAngleMeasuredFromNormalG[ROLL];
 
 		angleTraveled[PITCH] = 0;
 		angleTraveled[ROLL] = 0;
@@ -353,17 +353,18 @@ void PidController::loop(bool rotorsEnabled) {
 		pidRunningThrottle[3] = 1000;
 	}
 
+	// Set threshold for each throttle
+	for(int i = 0; i < 4; i++) {
+		if(pidRunningThrottle[i] > pidConfigs->getMaxThrottle()) {
+			pidRunningThrottle[i] = pidConfigs->getMaxThrottle();
+		} else if(pidRunningThrottle[i] < 1100) {
+			pidRunningThrottle[i] = 1100;
+		}
+	}
+
 	// SET THROTTLE FOR EACH ROTOR
 	if(rotorsEnabled) {
 		// limit esc pulse
-		for(int i = 0; i < 4; i++) {
-			if(pidRunningThrottle[i] > pidConfigs->getMaxThrottle()) {
-				pidRunningThrottle[i] = pidConfigs->getMaxThrottle();
-			} else if(pidRunningThrottle[i] < 1100) {
-				pidRunningThrottle[i] = 1100;
-			}
-		}
-
 		esc_controller->setPwmCycle(ROTOR_1_CHANNEL, 0, pidRunningThrottle[0]);
 		esc_controller->setPwmCycle(ROTOR_2_CHANNEL, 0, pidRunningThrottle[1]);
 		esc_controller->setPwmCycle(ROTOR_3_CHANNEL, 0, pidRunningThrottle[2]);
@@ -411,19 +412,22 @@ void PidController::loop(bool rotorsEnabled) {
 //			std::cout << "Pitch Traveled: " << angleTraveled[PITCH] << std::endl;
 
 //			std::cout << "Normalized Gyro: " << gyro_sensorNormalized[ROLL] << std::endl;
+//			std::cout << "Normalized Gyro YAW: " << gyro_sensorNormalized[YAW] << std::endl;
 
 //			std::cout << "Level adjust Roll: " << levelAdjust[ROLL] << std::endl;
 //			std::cout << "Level adjust Pitch: " << levelAdjust[PITCH] << std::endl;
 
 			// for use with accelerometer callibration [helps trim acc value]
-//			std::cout << "AccPitch: " << accAngleMeasuredFromNormalG[PITCH] << std::endl;
-//			std::cout << "AccRoll: " << accAngleMeasuredFromNormalG[ROLL] << std::endl;
+//			std::cout << "Pitch from ACC: " << accAngleMeasuredFromNormalG[PITCH] << std::endl;
+//			std::cout << "Roll from ACC: " << accAngleMeasuredFromNormalG[ROLL] << std::endl;
+//			std::cout << "MPU6050 - Acc Roll: " << gyro->getAccX_G() << std::endl;
+
 
 			std::cout << "Rotor 1: " << pidRunningThrottle[0] << std::endl;
 			std::cout << "Rotor 2: " << pidRunningThrottle[1] << std::endl;
 			std::cout << "Rotor 3: " << pidRunningThrottle[2] << std::endl;
 			std::cout << "Rotor 4: " << pidRunningThrottle[3] << std::endl;
-
+//
 
 //			std::cout << "Roll Gyro Output: " << gyro->getRoll_DPS() << std::endl;
 //			std::cout << "Pitch Gyro Ouptut: " << gyro->getPitch_DPS() << std::endl;
@@ -501,7 +505,6 @@ void PidController::setPitchDPS(double dps) {
 void PidController::setYawDPS(double dps) {
 	pidSetPoint[YAW] = dps;
 }
-
 double PidController::getNormalizedGyroX() {
 	return gyro_sensorNormalized[ROLL];
 }
@@ -536,10 +539,24 @@ double PidController::getAccelerationZ() {
 
 void PidController::calculatePidController() {
 	// iterate PID Calculator for roll, pitch, and yaw
-	pidSetPoint[ROLL] -= levelAdjust[ROLL];
-	pidSetPoint[PITCH] -= levelAdjust[PITCH];
+//	pidSetPoint[ROLL] -= levelAdjust[ROLL];
+//	pidSetPoint[PITCH] -= levelAdjust[PITCH];
+
+	// Adjust to MPU arrangment on quad chasis
+//	double pitchSetpointTemp = pidSetPoint[PITCH];
+//	pidSetPoint[PITCH] = pidSetPoint[ROLL];
+//	pidSetPoint[ROLL] = pitchSetpointTemp;
 
 	for(int i = 0; i < 3; i++) {
+		// Adjust to MPU arrangment on quad chasis
+//		int y = 0;
+//		if(i == PITCH) {
+//			y = ROLL;
+//		} else if(i == ROLL) {
+//			y = PITCH;
+//		} else {
+//			y = i;
+//		}
 		pidRunningError[i] = gyro_sensorPidInput[i] - pidSetPoint[i];
 		pidIntegralMemory[i] += pidConfigs->getIntegralGain()[i] * pidRunningError[i];
 		if(pidIntegralMemory[i] > pidConfigs->getMaxPidOutput()[i]) {
@@ -547,6 +564,13 @@ void PidController::calculatePidController() {
 		} else if (pidIntegralMemory[i] < (-1 * pidConfigs->getMaxPidOutput()[i])) {
 			pidIntegralMemory[i] = (-1 * pidConfigs->getMaxPidOutput()[i]);
 		}
+
+//		if(i == ROLL) {
+//			std::cout << "ROLL PID Ouptut: " << pidRunningError[i] << ": " << gyro_sensorPidInput[i] << " - ::" << pidSetPoint[i] << std::endl;
+//		} else if(i == PITCH) {
+//			std::cout << "PITCH PID Ouptut: " << pidRunningError[i] << ": " << gyro_sensorPidInput[i] << " - ::" << pidSetPoint[i] << std::endl;
+//		}
+
 
 		// Get PID-output
 		pidOutput[i] = pidConfigs->getProportionalGain()[i] * pidRunningError[i] + pidIntegralMemory[i] +

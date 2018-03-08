@@ -66,6 +66,8 @@ private:
 	const char* directiveString;
 	vector<std::string> vipleString;
 
+	int rxMotionSpeed = 0;
+
 	std::string _parseDirectiveFromRxSharedMemory();
 	TransitionRxEvent _stringToEvent(std::string event);
 	int _eventToIndex(TransitionRxEvent rxEvent);
