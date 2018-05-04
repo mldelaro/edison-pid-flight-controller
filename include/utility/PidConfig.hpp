@@ -8,16 +8,21 @@ class PidConfig {
 public:
 	PidConfig();
 	PidConfig(Properties* propertyFile);
+	void setIsImuDataLabelled(bool enabled);
 	double* getProportionalGain();
 	double* getIntegralGain();
 	double* getDerivativeGain();
 	double* getMaxPidOutput();
+	double* getAccTrim();
 	int getMaxReceiverOutput();
 	int getMaxThrottle();
 	int getHoveringBaselineThrottle();
 	int getCorrectionFrequencyHz();
-	bool isCsvPidOutputEnabled();
-	bool isCsvRawGyroOutputEnabled();
+	bool isUploadToS3EnabledOnStop();
+	bool isUploadToTrainingDirEnabled();
+	bool isUploadToS3ClassificationDirEnabled();
+	bool isUploadToMarDatabaseEnabled();
+	bool isImuDataLabelled();
 
 private:
 	Properties* propertyFile;
@@ -25,31 +30,27 @@ private:
 	double IGain[3];
 	double DGain[3];
 	double PIDMaxOutput[3];
+	double AccTrim[2];
 	int maxReceiverOutput;
 	int maxThrottle;
 	int hoveringBaselineThrottle;
 	int correctionFrequencyHz;
-	bool csvPidOutputEnabled;
-	bool csvRawGyroOutputEnabled;
+	bool uploadToS3TrainingDir;
+	bool uploadToS3ClassificationDir;
+	bool labelImuData;
+	bool uploadToS3OnStop;
+	bool uploadToMarDatabase;
 
 	void _getDoubleValue(double* val, std::string key) {
 		double valueFromProperty;
 		valueFromProperty = propertyFile->getDoubleForKey(key);
-		if(valueFromProperty >= 0) {
-			*val = valueFromProperty;
-		} else {
-			std::cout << "DEFAULT = " << *val << std::endl;
-		}
+		*val = valueFromProperty;
 	}
 
 	void _getIntValue(int* val, std::string key) {
 		double valueFromProperty;
 		valueFromProperty = propertyFile->getIntForKey(key);
-		if(valueFromProperty >= 0) {
-			*val = valueFromProperty;
-		} else {
-			std::cout << "DEFAULT = " << *val << std::endl;
-		}
+		*val = valueFromProperty;
 	}
 };
 
